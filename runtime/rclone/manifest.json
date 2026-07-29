@@ -1,0 +1,28 @@
+{
+  "schema": 1,
+  "version": "1.74.4",
+  "releaseBaseUrl": "https://downloads.rclone.org/v1.74.4",
+  "assets": {
+    "linux-x64": {
+      "filename": "rclone-v1.74.4-linux-amd64.zip",
+      "sha256": "fe435e0c36228e7c2f116a8701f01127bb1f694005fc11d1f27186c8bca4115d"
+    },
+    "linux-arm64": {
+      "filename": "rclone-v1.74.4-linux-arm64.zip",
+      "sha256": "97685285c9ad6a0cf17d5844115d2a67245af6444db672187074bd9c358de419"
+    },
+    "win-x64": {
+      "filename": "rclone-v1.74.4-windows-amd64.zip",
+      "sha256": "ef097ef9de37a57feb7d9f9c7afb34148ad3c65be8025f1d8f7f521554a701ea"
+    },
+    "osx-x64": {
+      "filename": "rclone-v1.74.4-osx-amd64.zip",
+      "sha256": "4188aa84043d7a6240912923f47639a9d2da21f3b40a521c065c8d92e66563f6"
+    },
+    "osx-arm64": {
+      "filename": "rclone-v1.74.4-osx-arm64.zip",
+      "sha256": "c2100e2d4a4b3be04c55cd45380cafe7647e1ad772bb055f52f00876ed701167"
+    }
+  },
+  "policy": "Values are pinned from the official rclone v1.74.4 SHA256SUMS file. Release CI must verify the signed checksum file before publishing."
+}

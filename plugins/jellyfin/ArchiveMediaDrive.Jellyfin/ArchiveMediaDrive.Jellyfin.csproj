@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Jellyfin.Controller" Version="10.11.11">
+      <ExcludeAssets>runtime</ExcludeAssets>
+    </PackageReference>
+    <PackageReference Include="Jellyfin.Model" Version="10.11.11">
+      <ExcludeAssets>runtime</ExcludeAssets>
+    </PackageReference>
+    <ProjectReference Include="../../../shared/dotnet/ArchiveMediaDrive.Core/ArchiveMediaDrive.Core.csproj" />
+  </ItemGroup>
+</Project>

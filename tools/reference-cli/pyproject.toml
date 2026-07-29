@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "archive-media-drive"
+version = "0.1.0"
+description = "Development harness for ArchiveMediaDrive source and rclone contract tests."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "AGPL-3.0-or-later" }
+authors = [{ name = "ArchiveMediaDrive contributors" }]
+keywords = ["internet-archive", "rclone", "media-server", "infuse", "jellyfin", "emby", "kodi"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "License :: OSI Approved :: GNU Affero General Public License v3 or later (AGPLv3+)",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+]
+dependencies = []
+
+[project.scripts]
+amd = "archivemediadrive.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/thedavidweng/archive-media-drive"
+Issues = "https://github.com/thedavidweng/archive-media-drive/issues"
+
+[tool.setuptools]
+packages = ["archivemediadrive"]

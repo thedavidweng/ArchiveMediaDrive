@@ -1,0 +1,17 @@
+# Kodi Media Center language file
+msgid ""
+msgstr ""
+"Language: en_GB\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+
+msgctxt "#30000"
+msgid "ArchiveMediaDrive"
+msgstr "ArchiveMediaDrive"
+
+msgctxt "#30001"
+msgid "Sources JSON"
+msgstr "Sources JSON"
+
+msgctxt "#30002"
+msgid "Refresh interval (minutes)"
+msgstr "Refresh interval (minutes)"

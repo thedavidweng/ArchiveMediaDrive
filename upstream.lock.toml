@@ -1,0 +1,34 @@
+schema = 1
+
+[internetarchive]
+project = "jjjake/internetarchive"
+version = "5.10.1"
+license = "AGPL-3.0"
+usage = "Kodi runtime, canonical fixture generation, reference behavior"
+
+[rclone]
+project = "rclone/rclone"
+version = "1.74.4"
+license = "MIT"
+usage = "Jellyfin/Emby item listing, public links, optional managed mount"
+
+[jellyfin]
+project = "jellyfin/jellyfin-plugin-template"
+server_version = "10.11.11"
+controller_package = "10.11.11"
+model_package = "10.11.11"
+target_framework = "net9.0"
+
+[emby]
+project = "MediaBrowser/Emby.SDK"
+stable_server_version = "4.9.3.0"
+server_core_package = "4.9.1.90"
+beta_test_version = "4.10.0.11-beta"
+target_framework = "netstandard2.0"
+
+[kodi]
+stable_major = 21
+stable_codename = "Omega"
+prerelease_major = 22
+prerelease_codename = "Piers"
+prerelease_version = "Beta 1"

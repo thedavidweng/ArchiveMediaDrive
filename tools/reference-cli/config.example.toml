@@ -1,0 +1,29 @@
+version = 1
+
+[serve]
+address = "127.0.0.1:8080"
+remote_name = "archive-media-drive"
+
+# A single item. The item directory contains every file exposed by Internet Archive.
+[[sources]]
+name = "Example item"
+kind = "item"
+value = "TripDown1905"
+
+# Every item in an Internet Archive collection.
+[[sources]]
+name = "Prelinger"
+kind = "collection"
+value = "prelinger"
+
+# A user's public favorites. A details/fav-username URL is also accepted.
+[[sources]]
+name = "My favorites"
+kind = "favorites"
+value = "example-user"
+
+# Any query supported by `ia search`.
+[[sources]]
+name = "Saved search"
+kind = "search"
+value = "mediatype:movies AND subject:kinescope"

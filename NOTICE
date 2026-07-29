@@ -1,0 +1,6 @@
+ArchiveMediaDrive reuses external upstream projects.
+
+- internetarchive / ia: GNU Affero General Public License v3
+- rclone: MIT License
+
+Kodi release packages vendor source-form Python dependencies. Jellyfin and Emby plugins download a pinned official rclone release after validating the committed checksum manifest. Upstream licenses and notices remain available from their projects and release artifacts.

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<addon id="plugin.video.archivemediadrive" name="ArchiveMediaDrive" version="0.1.0" provider-name="ArchiveMediaDrive contributors">
+  <requires>
+    <import addon="xbmc.python" version="3.0.0"/>
+  </requires>
+  <extension point="xbmc.python.pluginsource" library="main.py">
+    <provides>audio video</provides>
+  </extension>
+  <extension point="xbmc.addon.metadata">
+    <summary lang="en_GB">Browse Internet Archive sources as native Kodi folders</summary>
+    <description lang="en_GB">Adds Internet Archive items, Collections, Favorites, and searches as a Kodi media source. Kodi remains responsible for playback and subtitles.</description>
+    <platform>all</platform>
+    <license>AGPL-3.0-or-later</license>
+    <source>https://github.com/thedavidweng/archive-media-drive</source>
+  </extension>
+</addon>

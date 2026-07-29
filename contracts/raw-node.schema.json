@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://archivemediadrive.dev/contracts/raw-node.schema.json",
+  "title": "ArchiveMediaDrive Raw Node",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "id",
+    "kind",
+    "name",
+    "path"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "parentId": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "kind": {
+      "enum": [
+        "source",
+        "item",
+        "directory",
+        "file"
+      ]
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "path": {
+      "type": "string"
+    },
+    "sourceId": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "identifier": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "size": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "format": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "iaSource": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "revision": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "publicUrl": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "uri"
+    }
+  }
+}

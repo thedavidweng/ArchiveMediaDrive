@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://archivemediadrive.dev/contracts/source.schema.json",
+  "title": "ArchiveMediaDrive Source",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "id",
+    "name",
+    "kind",
+    "value",
+    "enabled",
+    "refreshMinutes"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]{0,63}$"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120
+    },
+    "kind": {
+      "enum": [
+        "item",
+        "collection",
+        "favorites",
+        "search"
+      ]
+    },
+    "value": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4096
+    },
+    "enabled": {
+      "type": "boolean"
+    },
+    "refreshMinutes": {
+      "type": "integer",
+      "minimum": 5,
+      "maximum": 10080
+    },
+    "authenticationRef": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 128
+    }
+  }
+}
