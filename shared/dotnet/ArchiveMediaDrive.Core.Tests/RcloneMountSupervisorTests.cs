@@ -59,10 +59,14 @@ public sealed class RcloneMountSupervisorTests
             Exited?.Invoke(this, EventArgs.Empty);
         }
 
+        public void FloodErrors(int count)
+        {
+            for (var i = 0; i < count; i++)
+                ErrorDataReceived?.Invoke(this, "error");
+        }
+
         public event EventHandler? Exited;
-#pragma warning disable CS0067
         public event EventHandler<string>? ErrorDataReceived;
-#pragma warning restore CS0067
     }
 
     [Fact]
@@ -150,5 +154,58 @@ public sealed class RcloneMountSupervisorTests
         {
             if (Directory.Exists(tmp)) Directory.Delete(tmp, true);
         }
+    }
+
+    [Fact]
+    public async Task Start_stop_start_is_idempotent()
+    {
+        var factory = new FakeProcessFactory();
+        var supervisor = new RcloneMountSupervisor(factory, "/tmp/amd-mount", "/tmp/amd-rclone", "amd-library");
+
+        await supervisor.StartAsync(CancellationToken.None);
+        var first = factory.LastProcess!;
+        await supervisor.StopAsync(CancellationToken.None);
+        await supervisor.StartAsync(CancellationToken.None);
+
+        Assert.True(supervisor.IsRunning);
+        Assert.Equal(1, first.StopCalls);
+        Assert.NotSame(first, factory.LastProcess);
+        Assert.Equal(1, factory.LastProcess!.StartCalls);
+    }
+
+    [Fact]
+    public async Task Stderr_flood_does_not_restart_process()
+    {
+        var factory = new FakeProcessFactory();
+        var supervisor = new RcloneMountSupervisor(factory, "/tmp/amd-mount", "/tmp/amd-rclone", "amd-library");
+
+        await supervisor.StartAsync(CancellationToken.None);
+        factory.LastProcess!.FloodErrors(100);
+
+        Assert.Equal(1, factory.LastProcess.StartCalls);
+        Assert.True(supervisor.IsRunning);
+    }
+
+    [Fact]
+    public async Task Graceful_stop_sets_process_to_null_and_stops_restart_loop()
+    {
+        var factory = new FakeProcessFactory();
+        var supervisor = new RcloneMountSupervisor(factory, "/tmp/amd-mount", "/tmp/amd-rclone", "amd-library")
+        {
+            RestartDelay = TimeSpan.FromMilliseconds(1),
+        };
+
+        await supervisor.StartAsync(CancellationToken.None);
+        await supervisor.StopAsync(CancellationToken.None);
+
+        Assert.False(supervisor.IsRunning);
+        Assert.Equal(1, factory.LastProcess!.StopCalls);
+
+        factory.LastProcess.SimulateExit(1);
+
+        await Task.Delay(50);
+
+        Assert.False(supervisor.IsRunning);
+        Assert.Equal(1, factory.LastProcess.StartCalls);
     }
 }

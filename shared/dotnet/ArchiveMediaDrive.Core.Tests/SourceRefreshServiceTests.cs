@@ -94,4 +94,102 @@ public sealed class SourceRefreshServiceTests
         Assert.Empty(snapshot.Identifiers);
         Assert.Contains("archive down", snapshot.LastError);
     }
+
+    [Fact]
+    public async Task RefreshAsync_with_zero_identifiers_returns_empty_snapshot()
+    {
+        var resolver = new FakeResolver
+        {
+            Behavior = (_, _) => Task.FromResult<IReadOnlyList<string>>(Array.Empty<string>()),
+        };
+        var store = new FakeSnapshotStore();
+        var service = new SourceRefreshService(resolver, store);
+
+        var snapshot = await service.RefreshAsync(
+            new SourceDefinition { Id = "s", Name = "S", Kind = SourceKind.Collection, Value = "prelinger" },
+            CancellationToken.None);
+
+        Assert.Empty(snapshot.Identifiers);
+        Assert.Equal(0, snapshot.Count);
+        Assert.Null(snapshot.LastError);
+    }
+
+    [Fact]
+    public async Task RefreshAsync_with_ten_thousand_identifiers_stores_all()
+    {
+        var ids = Enumerable.Range(0, 10000).Select(i => $"id{i:0000}").ToArray();
+        var resolver = new FakeResolver
+        {
+            Behavior = (_, _) => Task.FromResult<IReadOnlyList<string>>(ids),
+        };
+        var store = new FakeSnapshotStore();
+        var service = new SourceRefreshService(resolver, store);
+
+        var snapshot = await service.RefreshAsync(
+            new SourceDefinition { Id = "s", Name = "S", Kind = SourceKind.Collection, Value = "prelinger" },
+            CancellationToken.None);
+
+        Assert.Equal(10000, snapshot.Count);
+        Assert.Equal("id0000", snapshot.Identifiers[0]);
+        Assert.Equal("id9999", snapshot.Identifiers[9999]);
+    }
+
+    [Fact]
+    public async Task RefreshAsync_limits_identifiers_to_maximum_and_preserves_order()
+    {
+        var ids = Enumerable.Range(0, 100001).Select(i => $"id{i:000000}").ToArray();
+        var resolver = new FakeResolver
+        {
+            Behavior = (_, _) => Task.FromResult<IReadOnlyList<string>>(ids),
+        };
+        var store = new FakeSnapshotStore();
+        var service = new SourceRefreshService(resolver, store);
+
+        var snapshot = await service.RefreshAsync(
+            new SourceDefinition { Id = "s", Name = "S", Kind = SourceKind.Collection, Value = "prelinger" },
+            CancellationToken.None);
+
+        Assert.Equal(100000, snapshot.Count);
+        Assert.Equal("id000000", snapshot.Identifiers[0]);
+        Assert.Equal("id099999", snapshot.Identifiers[99999]);
+    }
+
+    [Theory]
+    [InlineData(SourceKind.Item, "id", "id")]
+    [InlineData(SourceKind.Collection, "prelinger", "collection:prelinger")]
+    [InlineData(SourceKind.Favorites, "david", "collection:fav-david")]
+    [InlineData(SourceKind.Search, "mediatype:movies", "mediatype:movies")]
+    public async Task RefreshAsync_stores_query_for_each_source_kind(SourceKind kind, string value, string expectedQuery)
+    {
+        var resolver = new FakeResolver
+        {
+            Behavior = (_, _) => Task.FromResult<IReadOnlyList<string>>(new[] { "a" }),
+        };
+        var store = new FakeSnapshotStore();
+        var service = new SourceRefreshService(resolver, store);
+
+        var snapshot = await service.RefreshAsync(
+            new SourceDefinition { Id = "s", Name = "S", Kind = kind, Value = value },
+            CancellationToken.None);
+
+        Assert.Equal(expectedQuery, snapshot.Query);
+    }
+
+    [Fact]
+    public async Task RefreshAsync_deduplicates_duplicate_identifiers()
+    {
+        var resolver = new FakeResolver
+        {
+            Behavior = (_, _) => Task.FromResult<IReadOnlyList<string>>(new[] { "alpha", "alpha", "beta" }),
+        };
+        var store = new FakeSnapshotStore();
+        var service = new SourceRefreshService(resolver, store);
+
+        var snapshot = await service.RefreshAsync(
+            new SourceDefinition { Id = "s", Name = "S", Kind = SourceKind.Collection, Value = "prelinger" },
+            CancellationToken.None);
+
+        Assert.Equal(new[] { "alpha", "beta" }, snapshot.Identifiers);
+        Assert.Equal(2, snapshot.Count);
+    }
 }

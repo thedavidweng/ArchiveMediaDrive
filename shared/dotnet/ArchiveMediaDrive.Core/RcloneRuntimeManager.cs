@@ -26,8 +26,8 @@ public sealed class RcloneManifest
 
     public void Validate()
     {
-        if (Schema <= 0)
-            throw new RcloneRuntimeException("rclone manifest schema must be a positive integer");
+        if (Schema != 1)
+            throw new RcloneRuntimeException("rclone manifest schema must be 1");
         if (string.IsNullOrWhiteSpace(Version))
             throw new RcloneRuntimeException("rclone manifest version is empty");
         if (string.IsNullOrWhiteSpace(ReleaseBaseUrl))
@@ -107,6 +107,7 @@ public sealed class HttpAssetDownloader : IAssetDownloader
 public sealed class RcloneRuntimeException : Exception
 {
     public RcloneRuntimeException(string message) : base(message) { }
+    public RcloneRuntimeException(string message, Exception inner) : base(message, inner) { }
 }
 
 public sealed class RcloneRuntimeManager : IRcloneRuntimeManager
@@ -245,9 +246,16 @@ public sealed class RcloneRuntimeManager : IRcloneRuntimeManager
         if (!File.Exists(ExecutablePath) || !File.Exists(ReceiptPath))
             throw new RcloneRuntimeException("rclone runtime is not installed");
 
-        var receipt = JsonSerializer.Deserialize<RcloneReceipt>(File.ReadAllText(ReceiptPath), ArchiveMediaDriveJson.Options);
-        if (receipt is null)
-            throw new RcloneRuntimeException("rclone receipt is invalid");
+        RcloneReceipt receipt;
+        try
+        {
+            receipt = JsonSerializer.Deserialize<RcloneReceipt>(File.ReadAllText(ReceiptPath), ArchiveMediaDriveJson.Options)
+                ?? throw new RcloneRuntimeException("rclone receipt is invalid");
+        }
+        catch (JsonException ex)
+        {
+            throw new RcloneRuntimeException("rclone receipt is invalid", ex);
+        }
 
         if (!_manifest.Assets.TryGetValue(_rid, out var asset))
             throw new RcloneRuntimeException($"unsupported architecture: no rclone package for RID '{_rid}'");

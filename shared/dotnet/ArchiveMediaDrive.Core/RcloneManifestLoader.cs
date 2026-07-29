@@ -13,10 +13,17 @@ public static class RcloneManifestLoader
     public static RcloneManifest Load(string path)
     {
         var json = File.ReadAllText(path);
-        var manifest = JsonSerializer.Deserialize<RcloneManifest>(json, ArchiveMediaDriveJson.Options)
-            ?? throw new RcloneRuntimeException($"invalid rclone manifest: {path}");
-        manifest.Validate();
-        return manifest;
+        try
+        {
+            var manifest = JsonSerializer.Deserialize<RcloneManifest>(json, ArchiveMediaDriveJson.Options)
+                ?? throw new RcloneRuntimeException($"invalid rclone manifest: {path}");
+            manifest.Validate();
+            return manifest;
+        }
+        catch (JsonException ex)
+        {
+            throw new RcloneRuntimeException($"invalid rclone manifest: {path}", ex);
+        }
     }
 
     public static RcloneManifest LoadFromPluginData(string pluginDataDirectory)

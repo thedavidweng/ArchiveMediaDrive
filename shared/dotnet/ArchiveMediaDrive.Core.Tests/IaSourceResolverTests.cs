@@ -155,4 +155,88 @@ public sealed class IaSourceResolverTests
         Assert.Equal(new[] { "alpha" }, result);
         Assert.True(attempts >= 2);
     }
+
+    [Fact]
+    public async Task ResolveAsync_throws_when_response_is_not_json()
+    {
+        var handler = new FakeHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent("not json"),
+        });
+        var resolver = new IaSourceResolver(new HttpClient(handler));
+
+        await Assert.ThrowsAnyAsync<JsonException>(() => resolver.ResolveAsync(
+            new SourceDefinition { Id = "s", Name = "S", Kind = SourceKind.Collection, Value = "prelinger" },
+            CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task ResolveAsync_returns_empty_for_zero_items()
+    {
+        var handler = new FakeHandler(_ => Json(SearchResponse(Array.Empty<string>(), 0, 0)));
+        var resolver = new IaSourceResolver(new HttpClient(handler)) { RetryDelay = TimeSpan.FromMilliseconds(1) };
+
+        var result = await resolver.ResolveAsync(
+            new SourceDefinition { Id = "s", Name = "S", Kind = SourceKind.Collection, Value = "prelinger" },
+            CancellationToken.None);
+
+        Assert.Empty(result);
+    }
+
+    [Fact]
+    public async Task ResolveAsync_returns_ten_thousand_items()
+    {
+        var page = 0;
+        var handler = new FakeHandler(_ =>
+        {
+            page++;
+            var start = (page - 1) * 1000;
+            var ids = Enumerable.Range(start, 1000).Select(i => $"id{i}").ToArray();
+            return Json(SearchResponse(ids, numFound: 10000, start));
+        });
+        var resolver = new IaSourceResolver(new HttpClient(handler)) { RetryDelay = TimeSpan.FromMilliseconds(1) };
+
+        var result = await resolver.ResolveAsync(
+            new SourceDefinition { Id = "s", Name = "S", Kind = SourceKind.Collection, Value = "prelinger" },
+            CancellationToken.None);
+
+        Assert.Equal(10000, result.Count);
+        Assert.Equal("id0", result[0]);
+        Assert.Equal("id9999", result[9999]);
+    }
+
+    [Fact]
+    public async Task ResolveAsync_handles_all_source_kinds()
+    {
+        var handler = new FakeHandler(req =>
+        {
+            var query = req.RequestUri!.Query;
+            if (query.Contains("collection%3Aprelinger"))
+                return Json(SearchResponse(new[] { "alpha" }, numFound: 1, start: 0));
+            if (query.Contains("collection%3Afav-david"))
+                return Json(SearchResponse(new[] { "beta" }, numFound: 1, start: 0));
+            if (query.Contains("mediatype%3Aaudio"))
+                return Json(SearchResponse(new[] { "gamma" }, numFound: 1, start: 0));
+            return Json(SearchResponse(Array.Empty<string>(), 0, 0));
+        });
+        var resolver = new IaSourceResolver(new HttpClient(handler)) { RetryDelay = TimeSpan.FromMilliseconds(1) };
+
+        var item = await resolver.ResolveAsync(
+            new SourceDefinition { Id = "s1", Name = "S", Kind = SourceKind.Item, Value = "TripDown1905" },
+            CancellationToken.None);
+        var collection = await resolver.ResolveAsync(
+            new SourceDefinition { Id = "s2", Name = "S", Kind = SourceKind.Collection, Value = "prelinger" },
+            CancellationToken.None);
+        var favorites = await resolver.ResolveAsync(
+            new SourceDefinition { Id = "s3", Name = "S", Kind = SourceKind.Favorites, Value = "fav-david" },
+            CancellationToken.None);
+        var search = await resolver.ResolveAsync(
+            new SourceDefinition { Id = "s4", Name = "S", Kind = SourceKind.Search, Value = "mediatype:audio" },
+            CancellationToken.None);
+
+        Assert.Equal(new[] { "TripDown1905" }, item);
+        Assert.Equal(new[] { "alpha" }, collection);
+        Assert.Equal(new[] { "beta" }, favorites);
+        Assert.Equal(new[] { "gamma" }, search);
+    }
 }

@@ -64,4 +64,11 @@ public sealed class RawNodeSerializationTests
         Assert.Contains("\"publicUrl\":null", json);
         Assert.Contains("\"size\":null", json);
     }
+
+    [Fact]
+    public void Deserializing_invalid_raw_node_json_throws()
+    {
+        Assert.ThrowsAny<JsonException>(() =>
+            JsonSerializer.Deserialize<RawNode>("not json", ArchiveMediaDriveJson.Options));
+    }
 }

@@ -76,7 +76,7 @@ public sealed class SourceRefreshService
 
     private static IReadOnlyList<string> SortAndLimit(IReadOnlyList<string> identifiers)
     {
-        var sorted = identifiers.OrderBy(id => id, StringComparer.Ordinal).ToList();
+        var sorted = identifiers.Distinct(StringComparer.Ordinal).OrderBy(id => id, StringComparer.Ordinal).ToList();
         if (sorted.Count > MaxIdentifiers)
             sorted.RemoveRange(MaxIdentifiers, sorted.Count - MaxIdentifiers);
         return sorted;

@@ -70,4 +70,29 @@ public sealed class SourceSerializationTests
         Assert.Equal(original.RefreshMinutes, roundTripped.RefreshMinutes);
         Assert.Equal(original.AuthenticationRef, roundTripped.AuthenticationRef);
     }
+
+    [Fact]
+    public void Deserializing_invalid_json_throws()
+    {
+        Assert.ThrowsAny<JsonException>(() =>
+            JsonSerializer.Deserialize<SourceDefinition>("not json", ArchiveMediaDriveJson.Options));
+    }
+
+    [Theory]
+    [InlineData(1)]
+    public void Source_schema_version_round_trips(int version)
+    {
+        var source = new SourceDefinition
+        {
+            SchemaVersion = version,
+            Id = "s",
+            Name = "S",
+            Kind = SourceKind.Item,
+            Value = "x",
+        };
+
+        var json = JsonSerializer.Serialize(source, ArchiveMediaDriveJson.Options);
+
+        Assert.Contains($"\"schemaVersion\":{version}", json);
+    }
 }
