@@ -96,7 +96,7 @@ jobs:
       - name: Install pip-audit
         run: python -m pip install pip-audit
       - name: Audit Python dependencies
-        run: pip-audit --project tools/reference-cli
+        run: pip-audit tools/reference-cli
 
   secret-scan:
     name: Secret scan
