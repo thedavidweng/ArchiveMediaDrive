@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Threading;
 
 namespace ArchiveMediaDrive.Core;
 
@@ -10,6 +11,9 @@ public sealed class RcloneEnvironment
 
     private readonly IRcloneRuntimeManager _runtimeManager;
     private readonly string _configDirectory;
+    private readonly SemaphoreSlim _readyGate = new(1, 1);
+    private Task<string>? _readyTask;
+    private string? _rcloneBinary;
 
     public RcloneEnvironment(IRcloneRuntimeManager runtimeManager, string configDirectory)
     {
@@ -19,10 +23,54 @@ public sealed class RcloneEnvironment
 
     public IRcloneRuntimeManager RuntimeManager => _runtimeManager;
     public string ConfigPath => Path.Combine(_configDirectory, "rclone.conf");
+    public string RcloneBinary => _rcloneBinary ?? throw new InvalidOperationException("rclone is not ready");
 
     public async Task<string> EnsureReadyAsync(CancellationToken cancellationToken)
     {
+        var task = Volatile.Read(ref _readyTask);
+        if (task is not null)
+        {
+            return await WaitWithCancellationAsync(task, cancellationToken);
+        }
+
+        await _readyGate.WaitAsync(cancellationToken);
+        try
+        {
+            if (_readyTask is null)
+                _readyTask = EnsureReadyCoreAsync(CancellationToken.None);
+
+            task = _readyTask;
+        }
+        finally
+        {
+            _readyGate.Release();
+        }
+
+        try
+        {
+            return await WaitWithCancellationAsync(task, cancellationToken);
+        }
+        catch
+        {
+            await _readyGate.WaitAsync(CancellationToken.None);
+            try
+            {
+                if (ReferenceEquals(_readyTask, task))
+                    _readyTask = null;
+            }
+            finally
+            {
+                _readyGate.Release();
+            }
+
+            throw;
+        }
+    }
+
+    private async Task<string> EnsureReadyCoreAsync(CancellationToken cancellationToken)
+    {
         var exePath = await _runtimeManager.EnsureInstalledAsync(cancellationToken);
+        _rcloneBinary = exePath;
         EnsureConfigFile();
         return exePath;
     }
@@ -39,6 +87,7 @@ public sealed class RcloneEnvironment
         IIaSourceResolver resolver,
         CancellationToken cancellationToken)
     {
+        await EnsureReadyAsync(cancellationToken);
         Directory.CreateDirectory(_configDirectory);
 
         var sb = new StringBuilder();
@@ -106,5 +155,20 @@ public sealed class RcloneEnvironment
             : "linux";
         var arch = RuntimeInformation.OSArchitecture == Architecture.Arm64 ? "arm64" : "x64";
         return $"{os}-{arch}";
+    }
+
+    private static async Task<T> WaitWithCancellationAsync<T>(Task<T> task, CancellationToken cancellationToken)
+    {
+        if (task.IsCompleted)
+            return await task;
+
+        var tcs = new TaskCompletionSource<object>();
+        using (cancellationToken.Register(state => ((TaskCompletionSource<object>)state!).TrySetCanceled(), tcs))
+        {
+            if (await Task.WhenAny(task, tcs.Task) == tcs.Task)
+                throw new OperationCanceledException(cancellationToken);
+        }
+
+        return await task;
     }
 }

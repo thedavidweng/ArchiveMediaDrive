@@ -38,10 +38,8 @@ public sealed class PluginServiceRegistrator : IPluginServiceRegistrator
 
         serviceCollection.AddSingleton<IRcloneGateway>(sp =>
         {
-            var runtime = sp.GetRequiredService<IRcloneRuntimeManager>();
             var env = sp.GetRequiredService<RcloneEnvironment>();
-            env.EnsureConfigFile();
-            return new RcloneLoopbackGateway(runtime, env.ConfigPath);
+            return new RcloneLoopbackGateway(env);
         });
 
         serviceCollection.AddSingleton<IReadOnlyList<SourceDefinition>>(_ =>

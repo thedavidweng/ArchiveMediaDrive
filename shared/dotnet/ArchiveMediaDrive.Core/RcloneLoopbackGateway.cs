@@ -125,18 +125,33 @@ public sealed class RcloneProcess : IRcloneProcess
 public sealed class RcloneLoopbackGateway : IRcloneGateway
 {
     private const string RemotePrefix = "archive-media-drive-ia";
-    private readonly IRcloneProcess _process;
+    private readonly RcloneEnvironment? _environment;
+    private readonly IRcloneProcess? _process;
+    private readonly string? _user;
+    private readonly string? _password;
 
-    public RcloneLoopbackGateway(IRcloneProcess process) => _process = process;
-
-    public RcloneLoopbackGateway(IRcloneRuntimeManager runtime, string configPath)
-        : this(new RcloneProcess(runtime.ExecutablePath, configPath, RemotePrefix))
+    public RcloneLoopbackGateway(RcloneEnvironment environment)
+        : this(environment, null, null)
     {
     }
 
-    public RcloneLoopbackGateway(IRcloneRuntimeManager runtime, string configPath, string? user, string? password)
-        : this(new RcloneProcess(runtime.ExecutablePath, configPath, RemotePrefix, user, password))
+    public RcloneLoopbackGateway(RcloneEnvironment environment, string? user, string? password)
     {
+        _environment = environment;
+        _user = user;
+        _password = password;
+    }
+
+    public RcloneLoopbackGateway(IRcloneProcess process)
+        : this(process, null, null)
+    {
+    }
+
+    public RcloneLoopbackGateway(IRcloneProcess process, string? user, string? password)
+    {
+        _process = process;
+        _user = user;
+        _password = password;
     }
 
     public async Task<IReadOnlyList<RawNode>> ListAsync(string identifier, string relativePath, CancellationToken cancellationToken)
@@ -144,6 +159,7 @@ public sealed class RcloneLoopbackGateway : IRcloneGateway
         ValidateIdentifier(identifier);
         ValidateRelativePath(relativePath);
 
+        var process = await GetProcessAsync(cancellationToken);
         var input = JsonSerializer.Serialize(new
         {
             fs = $"{RemotePrefix}:{identifier}",
@@ -153,7 +169,7 @@ public sealed class RcloneLoopbackGateway : IRcloneGateway
         string output;
         try
         {
-            output = await _process.ExecuteAsync("operations/list", input, cancellationToken);
+            output = await process.ExecuteAsync("operations/list", input, cancellationToken);
         }
         catch (RcloneProcessException ex)
         {
@@ -191,6 +207,7 @@ public sealed class RcloneLoopbackGateway : IRcloneGateway
         ValidateIdentifier(identifier);
         ValidateRelativePath(relativePath);
 
+        var process = await GetProcessAsync(cancellationToken);
         var input = JsonSerializer.Serialize(new
         {
             fs = $"{RemotePrefix}:{identifier}",
@@ -200,7 +217,7 @@ public sealed class RcloneLoopbackGateway : IRcloneGateway
         string output;
         try
         {
-            output = await _process.ExecuteAsync("operations/publiclink", input, cancellationToken);
+            output = await process.ExecuteAsync("operations/publiclink", input, cancellationToken);
         }
         catch (RcloneProcessException ex)
         {
@@ -221,10 +238,12 @@ public sealed class RcloneLoopbackGateway : IRcloneGateway
 
     public async Task<RcloneProbe> ProbeAsync(CancellationToken cancellationToken)
     {
+        var process = await GetProcessAsync(cancellationToken);
+
         string output;
         try
         {
-            output = await _process.ExecuteAsync("core/version", "{}", cancellationToken);
+            output = await process.ExecuteAsync("core/version", "{}", cancellationToken);
         }
         catch (RcloneProcessException ex)
         {
@@ -238,6 +257,16 @@ public sealed class RcloneLoopbackGateway : IRcloneGateway
             Platform = doc.RootElement.TryGetProperty("os", out var o) ? o.GetString() ?? "" : "",
             Architecture = doc.RootElement.TryGetProperty("arch", out var a) ? a.GetString() ?? "" : "",
         };
+    }
+
+    private async Task<IRcloneProcess> GetProcessAsync(CancellationToken cancellationToken)
+    {
+        if (_process is not null)
+            return _process;
+
+        var environment = _environment ?? throw new InvalidOperationException("no rclone process or environment configured");
+        var exe = await environment.EnsureReadyAsync(cancellationToken);
+        return new RcloneProcess(exe, environment.ConfigPath, RemotePrefix, _user, _password);
     }
 
     private static void ValidateIdentifier(string identifier)

@@ -11,19 +11,15 @@ namespace ArchiveMediaDrive.Jellyfin;
 public sealed class ChannelService
 {
     private readonly ChannelMappingService _mapping;
-    private readonly RcloneEnvironment _rcloneEnvironment;
     private readonly ILogger<ChannelService> _logger;
-    private int _runtimeEnsured;
 
     public ChannelService(
         IIaSourceResolver resolver,
         IRcloneGateway gateway,
-        RcloneEnvironment rcloneEnvironment,
         IReadOnlyList<SourceDefinition> sources,
         ILogger<ChannelService> logger)
     {
         _mapping = new ChannelMappingService(resolver, gateway, sources);
-        _rcloneEnvironment = rcloneEnvironment;
         _logger = logger;
     }
 
@@ -31,7 +27,6 @@ public sealed class ChannelService
     {
         try
         {
-            await EnsureRuntimeReadyAsync(cancellationToken);
             var page = await _mapping.GetItemsAsync(query.FolderId ?? "", cancellationToken);
             var items = page.Items.Select(MapToChannelItemInfo).ToList();
             return new ChannelItemResult { Items = items, TotalRecordCount = items.Count };
@@ -41,12 +36,6 @@ public sealed class ChannelService
             _logger.LogError(ex, "Failed to get channel items for folder {FolderId}", query.FolderId);
             return new ChannelItemResult { Items = new List<ChannelItemInfo>(), TotalRecordCount = 0 };
         }
-    }
-
-    private async Task EnsureRuntimeReadyAsync(CancellationToken cancellationToken)
-    {
-        if (Interlocked.CompareExchange(ref _runtimeEnsured, 1, 0) == 0)
-            await _rcloneEnvironment.EnsureReadyAsync(cancellationToken);
     }
 
     private static ChannelItemInfo MapToChannelItemInfo(ChannelItemDto dto) => dto.Kind switch

@@ -32,7 +32,7 @@ public sealed class ArchiveMediaDriveChannel : IChannel
         _rcloneEnvironment = new RcloneEnvironment(runtimeManager, Path.Combine(dataDir, "rclone"));
 
         var resolver = new IaSourceResolver(SharedHttpClient);
-        var gateway = new RcloneLoopbackGateway(runtimeManager, _rcloneEnvironment.ConfigPath);
+        var gateway = new RcloneLoopbackGateway(_rcloneEnvironment);
         _mapping = new ChannelMappingService(resolver, gateway, sources);
     }
 
@@ -46,7 +46,6 @@ public sealed class ArchiveMediaDriveChannel : IChannel
         if (!config.ChannelEnabled)
             return new ChannelItemResult { Items = new List<ChannelItemInfo>(), TotalRecordCount = 0 };
 
-        await _rcloneEnvironment.EnsureReadyAsync(cancellationToken);
         var page = await _mapping.GetItemsAsync(query.FolderId ?? "", cancellationToken);
         var items = page.Items.Select(MapToChannelItemInfo).ToList();
         return new ChannelItemResult { Items = items, TotalRecordCount = items.Count };
