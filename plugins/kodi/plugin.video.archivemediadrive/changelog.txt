@@ -1,0 +1,9 @@
+ArchiveMediaDrive for Kodi
+
+0.1.0
+- Initial release.
+- Browse Internet Archive items, collections, favorites, and searches.
+- Add, edit, delete, and test sources from the add-on UI.
+- Cache source results and refresh on demand.
+- Paginate large collections with "Next page" folders.
+- Mount Internet Archive as a Kodi library via rclone (managed library mode).

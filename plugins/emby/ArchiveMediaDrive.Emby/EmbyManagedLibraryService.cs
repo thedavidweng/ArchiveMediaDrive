@@ -83,7 +83,6 @@ public sealed class EmbyManagedLibraryService : IDisposable
                 }
                 catch
                 {
-                    // Library may already be removed.
                 }
             }
         }

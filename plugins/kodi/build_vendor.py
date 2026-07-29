@@ -68,7 +68,44 @@ def _is_pure_python(path: Path) -> bool:
 
 def _should_strip(name: str) -> bool:
     parts = Path(name).parts
+    if "licenses" in parts:
+        return False
     return any(part in _STRIP_DIRS for part in parts)
+
+
+def _collect_license_texts() -> list[tuple[str, str]]:
+    result: list[tuple[str, str]] = []
+    if not _VENDOR_DIR.exists():
+        return result
+
+    for dist_info in _VENDOR_DIR.rglob("*.dist-info"):
+        package = dist_info.name.split("-")[0]
+        licenses_dir = dist_info / "licenses"
+        if not licenses_dir.is_dir():
+            continue
+
+        for license_file in licenses_dir.iterdir():
+            if license_file.is_file():
+                result.append((f"{package} {license_file.name}", license_file.read_text(encoding="utf-8")))
+                break
+
+    return result
+
+
+def _write_license_txt() -> None:
+    root_license = Path(__file__).resolve().parent.parent.parent / "LICENSE"
+    parts = [root_license.read_text(encoding="utf-8")]
+
+    vendor_licenses = _collect_license_texts()
+    if vendor_licenses:
+        parts.append("\n\n================================================================================\n")
+        parts.append("THIRD-PARTY LICENSES\n")
+        parts.append("================================================================================\n")
+        for package, text in vendor_licenses:
+            parts.append(f"\n--- {package} ---\n\n")
+            parts.append(text)
+
+    (_PLUGIN_ROOT / "LICENSE.txt").write_text("".join(parts), encoding="utf-8")
 
 
 def build() -> None:
@@ -110,6 +147,8 @@ def build() -> None:
     init_file = _VENDOR_DIR / "__init__.py"
     if not init_file.exists():
         init_file.write_text("", encoding="utf-8")
+
+    _write_license_txt()
 
     print(f"vendored {len(list(_VENDOR_DIR.rglob('*.py')))} Python files into {_VENDOR_DIR}")
 

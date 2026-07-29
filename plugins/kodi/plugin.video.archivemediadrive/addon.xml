@@ -11,6 +11,11 @@
     <description lang="en_GB">Adds Internet Archive items, Collections, Favorites, and searches as a Kodi media source. Kodi remains responsible for playback and subtitles.</description>
     <platform>all</platform>
     <license>AGPL-3.0-or-later</license>
-    <source>https://github.com/thedavidweng/archive-media-drive</source>
+    <source>https://github.com/thedavidweng/ArchiveMediaDrive</source>
+    <assets>
+      <icon>icon.png</icon>
+      <fanart>fanart.jpg</fanart>
+    </assets>
+    <news>v0.1.0: Initial release with source editor, caching, pagination, and managed library support.</news>
   </extension>
 </addon>

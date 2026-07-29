@@ -85,7 +85,6 @@ public sealed class Plugin : BasePluginSimpleUI<PluginOptions>
         }
         catch (Exception)
         {
-            // Best-effort reconcile. Errors are visible in the Emby log.
         }
     }
 
