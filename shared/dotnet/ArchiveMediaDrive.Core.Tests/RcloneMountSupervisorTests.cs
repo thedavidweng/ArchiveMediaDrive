@@ -60,6 +60,9 @@ public sealed class RcloneMountSupervisorTests
         }
 
         public event EventHandler? Exited;
+#pragma warning disable CS0067
+        public event EventHandler<string>? ErrorDataReceived;
+#pragma warning restore CS0067
     }
 
     [Fact]

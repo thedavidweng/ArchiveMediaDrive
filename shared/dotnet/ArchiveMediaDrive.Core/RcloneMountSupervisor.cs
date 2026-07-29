@@ -2,19 +2,6 @@ using System.Diagnostics;
 
 namespace ArchiveMediaDrive.Core;
 
-public interface IMountProcess
-{
-    void Start();
-    void Stop();
-    bool IsRunning { get; }
-    event EventHandler? Exited;
-}
-
-public interface IMountProcessFactory
-{
-    IMountProcess Create(string binary, string[] args, string mountPoint);
-}
-
 public sealed class RcloneMountException : Exception
 {
     public RcloneMountException(string message) : base(message) { }

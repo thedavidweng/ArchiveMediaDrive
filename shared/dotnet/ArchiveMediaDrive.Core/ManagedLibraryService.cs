@@ -1,7 +1,22 @@
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using System.Text;
 
 namespace ArchiveMediaDrive.Core;
+
+public interface IMountProcess
+{
+    void Start();
+    void Stop();
+    bool IsRunning { get; }
+    event EventHandler? Exited;
+    event EventHandler<string>? ErrorDataReceived;
+}
+
+public interface IMountProcessFactory
+{
+    IMountProcess Create(string binary, string[] args, string mountPoint);
+}
 
 public sealed class ManagedLibraryService : IDisposable
 {
@@ -82,6 +97,9 @@ public sealed class ProcessMountProcessFactory : IMountProcessFactory
 
 public sealed class ProcessMountProcess : IMountProcess
 {
+    private static readonly bool IsWindows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
+    private static readonly bool IsLinux = RuntimeInformation.IsOSPlatform(OSPlatform.Linux);
+
     private readonly string _binary;
     private readonly string[] _args;
     private readonly string _mountPoint;
@@ -104,6 +122,7 @@ public sealed class ProcessMountProcess : IMountProcess
     }
 
     public event EventHandler? Exited;
+    public event EventHandler<string>? ErrorDataReceived;
 
     public void Start()
     {
@@ -124,7 +143,13 @@ public sealed class ProcessMountProcess : IMountProcess
 
         _process = new Process { StartInfo = psi, EnableRaisingEvents = true };
         _process.Exited += (s, e) => Exited?.Invoke(s, e);
+        _process.ErrorDataReceived += (s, e) =>
+        {
+            if (!string.IsNullOrEmpty(e.Data))
+                ErrorDataReceived?.Invoke(this, e.Data);
+        };
         _process.Start();
+        _process.BeginErrorReadLine();
     }
 
     public void Stop()
@@ -134,11 +159,59 @@ public sealed class ProcessMountProcess : IMountProcess
 
         try
         {
-            _process.Kill();
-            _process.WaitForExit(5000);
+            TryUnmount();
+            WaitForProcessExit(TimeSpan.FromSeconds(2));
+
+            if (!_process.HasExited)
+            {
+                _process.Kill();
+                _process.WaitForExit(5000);
+            }
         }
         catch
         {
+        }
+    }
+
+    private void TryUnmount()
+    {
+        if (IsWindows) return;
+
+        var commands = new[]
+        {
+            (tool: "fusermount", args: $"-u \"{_mountPoint}\""),
+            (tool: "umount", args: $"\"{_mountPoint}\""),
+        };
+
+        foreach (var (tool, args) in commands)
+        {
+            try
+            {
+                var psi = new ProcessStartInfo(tool, args)
+                {
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    RedirectStandardError = true,
+                };
+                using var proc = Process.Start(psi);
+                proc?.WaitForExit(3000);
+                if (proc?.ExitCode == 0)
+                    return;
+            }
+            catch
+            {
+            }
+        }
+    }
+
+    private void WaitForProcessExit(TimeSpan timeout)
+    {
+        if (_process is null) return;
+
+        var sw = Stopwatch.StartNew();
+        while (sw.Elapsed < timeout && !_process.HasExited)
+        {
+            _process.WaitForExit(100);
         }
     }
 }
