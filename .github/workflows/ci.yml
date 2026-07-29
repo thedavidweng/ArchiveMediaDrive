@@ -14,12 +14,18 @@ jobs:
           python-version: '3.12'
       - run: python -m json.tool contracts/source.schema.json >/dev/null
       - run: python -m json.tool contracts/raw-node.schema.json >/dev/null
+      - run: python -m json.tool contracts/runtime-request.schema.json >/dev/null
       - run: python -m json.tool runtime/rclone/manifest.json >/dev/null
+      - run: python -m json.tool contracts/fixtures/sources.json >/dev/null
+      - run: python -m json.tool contracts/fixtures/ia/manifest.json >/dev/null
       - name: Reject publishable runtime placeholders
         run: |
           if [[ "${GITHUB_REF_TYPE:-}" == "tag" ]] && grep -R "REPLACE_FROM_OFFICIAL_SHA256SUMS" runtime/rclone/manifest.json; then
             exit 1
           fi
+      - name: Reject binaries in Kodi plugin
+        run: |
+          ! find plugins/kodi -type f -not -path '*/__pycache__/*' \( -name '*.so' -o -name '*.dll' -o -name '*.exe' -o -name '*.pyo' -o -name '*.pyc' \) | grep .
 
   reference-cli:
     runs-on: ubuntu-latest
@@ -34,13 +40,52 @@ jobs:
       - run: python -m pip install -e .
       - run: python -m unittest discover -s tests -v
 
-  dotnet:
+  kodi:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: plugins/kodi
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m unittest discover -s tests -v
+
+  dotnet-core:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '9.0.x'
-      - run: dotnet build shared/dotnet/ArchiveMediaDrive.Core/ArchiveMediaDrive.Core.csproj --configuration Release
-      - run: dotnet build plugins/jellyfin/ArchiveMediaDrive.Jellyfin/ArchiveMediaDrive.Jellyfin.csproj --configuration Release
+          dotnet-version: '10.0.x'
+      - run: dotnet test shared/dotnet/ArchiveMediaDrive.Core.Tests/ArchiveMediaDrive.Core.Tests.csproj --configuration Release
+
+  dotnet-jellyfin:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - run: dotnet test plugins/jellyfin/ArchiveMediaDrive.Jellyfin.Tests/ArchiveMediaDrive.Jellyfin.Tests.csproj --configuration Release
+
+  dotnet-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
       - run: dotnet build plugins/emby/ArchiveMediaDrive.Emby/ArchiveMediaDrive.Emby.csproj --configuration Release
+
+  rclone-integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Install rclone
+        run: curl https://rclone.org/install.sh | sudo bash
+      - run: dotnet test shared/dotnet/ArchiveMediaDrive.Core.Tests/ArchiveMediaDrive.Core.Tests.csproj --configuration Release --filter "Category=Integration"
