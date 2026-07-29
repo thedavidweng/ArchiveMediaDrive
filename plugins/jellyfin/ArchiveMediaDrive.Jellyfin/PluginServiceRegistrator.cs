@@ -4,6 +4,7 @@ using MediaBrowser.Controller;
 using MediaBrowser.Controller.Plugins;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
 namespace ArchiveMediaDrive.Jellyfin;
 
@@ -37,12 +38,15 @@ public sealed class PluginServiceRegistrator : IPluginServiceRegistrator
         serviceCollection.AddSingleton<IIaSourceResolver, IaSourceResolver>();
         serviceCollection.AddSingleton<ISourceSnapshotStore>(_ =>
             new FileSystemSourceSnapshotStore(Path.Combine(dataDir, "sources")));
+        serviceCollection.AddSingleton<SourceRefreshService>();
 
         serviceCollection.AddSingleton<IRcloneGateway>(sp =>
         {
             var env = sp.GetRequiredService<RcloneEnvironment>();
             return new RcloneLoopbackGateway(env);
         });
+
+        serviceCollection.AddSingleton<ChannelMappingService>();
 
         serviceCollection.AddSingleton<IReadOnlyList<SourceDefinition>>(_ =>
         {
@@ -51,7 +55,13 @@ public sealed class PluginServiceRegistrator : IPluginServiceRegistrator
             return LoadSources(config.SourcesJson);
         });
 
-        serviceCollection.AddSingleton<ChannelService>();
+        serviceCollection.AddSingleton<ChannelService>(sp =>
+        {
+            var mapping = sp.GetRequiredService<ChannelMappingService>();
+            var logger = sp.GetRequiredService<ILogger<ChannelService>>();
+            return new ChannelService(mapping, () => LoadSources(Plugin.Instance?.Configuration.SourcesJson ?? "[]"), logger);
+        });
+
         serviceCollection.AddSingleton<ArchiveMediaDriveChannel>();
 
         serviceCollection.AddSingleton<ManagedLibraryService>(sp =>

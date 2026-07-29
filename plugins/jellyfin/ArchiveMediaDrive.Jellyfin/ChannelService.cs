@@ -11,17 +11,16 @@ namespace ArchiveMediaDrive.Jellyfin;
 public sealed class ChannelService
 {
     private readonly ChannelMappingService _mapping;
+    private readonly Func<IReadOnlyList<SourceDefinition>> _getSources;
     private readonly ILogger<ChannelService> _logger;
 
     public ChannelService(
-        IIaSourceResolver resolver,
-        ISourceSnapshotStore store,
-        IRcloneGateway gateway,
-        IReadOnlyList<SourceDefinition> sources,
+        ChannelMappingService mapping,
+        Func<IReadOnlyList<SourceDefinition>> getSources,
         ILogger<ChannelService> logger)
     {
-        var refresh = new SourceRefreshService(resolver, store);
-        _mapping = new ChannelMappingService(refresh, store, gateway, sources);
+        _mapping = mapping;
+        _getSources = getSources;
         _logger = logger;
     }
 
@@ -29,9 +28,18 @@ public sealed class ChannelService
     {
         try
         {
-            var page = await _mapping.GetItemsAsync(query.FolderId ?? "", cancellationToken);
-            var items = page.Items.Select(MapToChannelItemInfo).ToList();
-            return new ChannelItemResult { Items = items, TotalRecordCount = items.Count };
+            var sources = _getSources();
+            var page = await _mapping.GetItemsAsync(query.FolderId ?? "", sources, cancellationToken);
+            var all = page.Items
+                .Where(i => i.Kind != ChannelItemKind.NonPlayable)
+                .Select(MapToChannelItemInfo)
+                .ToList();
+
+            var start = query.StartIndex ?? 0;
+            var limit = query.Limit is > 0 ? query.Limit.Value : all.Count;
+            var items = all.Skip(start).Take(limit).ToList();
+
+            return new ChannelItemResult { Items = items, TotalRecordCount = all.Count };
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -71,4 +79,5 @@ public sealed class ChannelService
             Id = dto.Id,
         },
     };
+
 }

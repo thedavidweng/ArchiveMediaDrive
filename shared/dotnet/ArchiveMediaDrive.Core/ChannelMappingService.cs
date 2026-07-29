@@ -39,28 +39,25 @@ public sealed class ChannelMappingService
     private readonly SourceRefreshService _refresh;
     private readonly ISourceSnapshotStore _store;
     private readonly IRcloneGateway _gateway;
-    private readonly IReadOnlyList<SourceDefinition> _sources;
     private readonly ConcurrentDictionary<string, SemaphoreSlim> _sourceLocks = new();
 
     public ChannelMappingService(
         SourceRefreshService refresh,
         ISourceSnapshotStore store,
-        IRcloneGateway gateway,
-        IReadOnlyList<SourceDefinition> sources)
+        IRcloneGateway gateway)
     {
         _refresh = refresh;
         _store = store;
         _gateway = gateway;
-        _sources = sources;
     }
 
-    public async Task<ChannelPageResult> GetItemsAsync(string folderId, CancellationToken cancellationToken)
+    public async Task<ChannelPageResult> GetItemsAsync(string folderId, IReadOnlyList<SourceDefinition> sources, CancellationToken cancellationToken)
     {
         if (string.IsNullOrEmpty(folderId))
-            return ListSources();
+            return ListSources(sources);
 
         if (folderId.StartsWith("source/", StringComparison.Ordinal))
-            return await ListItemsInSourceAsync(folderId.Substring("source/".Length), cancellationToken);
+            return await ListItemsInSourceAsync(folderId.Substring("source/".Length), sources, cancellationToken);
 
         if (folderId.StartsWith("item/", StringComparison.Ordinal))
             return await ListFilesInItemAsync(folderId.Substring("item/".Length), cancellationToken);
@@ -68,9 +65,9 @@ public sealed class ChannelMappingService
         return new ChannelPageResult();
     }
 
-    private ChannelPageResult ListSources()
+    private static ChannelPageResult ListSources(IReadOnlyList<SourceDefinition> sources)
     {
-        var items = _sources
+        var items = sources
             .Where(s => s.Enabled)
             .Select(s => new ChannelItemDto
             {
@@ -83,9 +80,9 @@ public sealed class ChannelMappingService
         return new ChannelPageResult { Items = items };
     }
 
-    private async Task<ChannelPageResult> ListItemsInSourceAsync(string sourceId, CancellationToken cancellationToken)
+    private async Task<ChannelPageResult> ListItemsInSourceAsync(string sourceId, IReadOnlyList<SourceDefinition> sources, CancellationToken cancellationToken)
     {
-        var source = _sources.FirstOrDefault(s => s.Id == sourceId);
+        var source = sources.FirstOrDefault(s => s.Id == sourceId);
         if (source is null)
             return new ChannelPageResult();
 

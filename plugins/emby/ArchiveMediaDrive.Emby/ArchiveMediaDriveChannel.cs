@@ -35,7 +35,7 @@ public sealed class ArchiveMediaDriveChannel : IChannel
         var store = new FileSystemSourceSnapshotStore(Path.Combine(dataDir, "sources"));
         var refresh = new SourceRefreshService(resolver, store);
         var gateway = new RcloneLoopbackGateway(_rcloneEnvironment);
-        _mapping = new ChannelMappingService(refresh, store, gateway, sources);
+        _mapping = new ChannelMappingService(refresh, store, gateway);
     }
 
     public string Name => "ArchiveMediaDrive";
@@ -48,9 +48,18 @@ public sealed class ArchiveMediaDriveChannel : IChannel
         if (!config.ChannelEnabled)
             return new ChannelItemResult { Items = new List<ChannelItemInfo>(), TotalRecordCount = 0 };
 
-        var page = await _mapping.GetItemsAsync(query.FolderId ?? "", cancellationToken);
-        var items = page.Items.Select(MapToChannelItemInfo).ToList();
-        return new ChannelItemResult { Items = items, TotalRecordCount = items.Count };
+        var sources = LoadSources(config.SourcesJson);
+        var page = await _mapping.GetItemsAsync(query.FolderId ?? "", sources, cancellationToken);
+        var all = page.Items
+            .Where(i => i.Kind != ChannelItemKind.NonPlayable)
+            .Select(MapToChannelItemInfo)
+            .ToList();
+
+        var start = query.StartIndex ?? 0;
+        var limit = query.Limit is > 0 ? query.Limit.Value : all.Count;
+        var items = all.Skip(start).Take(limit).ToList();
+
+        return new ChannelItemResult { Items = items, TotalRecordCount = all.Count };
     }
 
     public Task<DynamicImageResponse> GetChannelImage(ImageType type, CancellationToken cancellationToken)

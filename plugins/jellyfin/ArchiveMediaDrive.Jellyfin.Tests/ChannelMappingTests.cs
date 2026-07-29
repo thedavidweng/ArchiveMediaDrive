@@ -52,8 +52,13 @@ public sealed class ChannelMappingTests
         new SourceDefinition { Id = "tripdown", Name = "Trip Down", Kind = SourceKind.Item, Value = "TripDown1905" },
     };
 
-    private static ChannelService CreateService() =>
-        new(new FakeResolver(), new FakeStore(), new FakeGateway(), Sources, NullLogger<ChannelService>.Instance);
+    private static ChannelService CreateService()
+    {
+        var store = new FakeStore();
+        var refresh = new SourceRefreshService(new FakeResolver(), store);
+        var mapping = new ChannelMappingService(refresh, store, new FakeGateway());
+        return new ChannelService(mapping, () => Sources, NullLogger<ChannelService>.Instance);
+    }
 
     [Fact]
     public async Task Root_folder_lists_configured_sources_as_folders()
@@ -87,7 +92,7 @@ public sealed class ChannelMappingTests
 
         var result = await service.GetChannelItemsAsync(new InternalChannelItemQuery { FolderId = "item/alpha" }, CancellationToken.None);
 
-        Assert.Equal(3, result.Items.Count);
+        Assert.Equal(2, result.Items.Count);
         var mp4 = result.Items.FirstOrDefault(i => i.Name == "alpha.mp4");
         Assert.NotNull(mp4);
         Assert.Equal(ChannelItemType.Media, mp4!.Type);
