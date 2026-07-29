@@ -2,10 +2,11 @@ using ArchiveMediaDrive.Core;
 using MediaBrowser.Common;
 using MediaBrowser.Common.Plugins;
 using MediaBrowser.Controller.Plugins;
+using MediaBrowser.Model.Plugins;
 
 namespace ArchiveMediaDrive.Emby;
 
-public sealed class Plugin : BasePluginSimpleUI<PluginOptions>
+public sealed class Plugin : BasePluginSimpleUI<PluginOptions>, IHasWebPages
 {
     private readonly IApplicationHost _applicationHost;
     private readonly object _initLock = new();
@@ -13,6 +14,9 @@ public sealed class Plugin : BasePluginSimpleUI<PluginOptions>
     private EmbyManagedLibraryService? _managedLibrary;
     private ChannelMappingService? _channelMapping;
     private SourceRefreshService? _sourceRefresh;
+    private FileSystemSourceSnapshotStore? _sourceStore;
+    private IConfigurationCoordinator? _configurationCoordinator;
+    private IDiagnosticsPackageBuilder? _diagnosticsBuilder;
     private static readonly HttpClient SharedHttpClient = new();
 
     public Plugin(IApplicationHost applicationHost)
@@ -46,6 +50,53 @@ public sealed class Plugin : BasePluginSimpleUI<PluginOptions>
         }
     }
 
+    public EmbyManagedLibraryService ManagedLibrary
+    {
+        get
+        {
+            EnsureServices();
+            return _managedLibrary!;
+        }
+    }
+
+    public ISourceSnapshotStore SourceStore
+    {
+        get
+        {
+            EnsureServices();
+            return _sourceStore!;
+        }
+    }
+
+    public SourceRefreshService SourceRefresh
+    {
+        get
+        {
+            EnsureServices();
+            return _sourceRefresh!;
+        }
+    }
+
+    public IConfigurationCoordinator ConfigurationCoordinator
+    {
+        get
+        {
+            EnsureServices();
+            return _configurationCoordinator!;
+        }
+    }
+
+    public IDiagnosticsPackageBuilder DiagnosticsPackageBuilder
+    {
+        get
+        {
+            EnsureServices();
+            return _diagnosticsBuilder!;
+        }
+    }
+
+    public string HostVersion => _applicationHost?.ApplicationVersion?.ToString() ?? string.Empty;
+
     public PluginOptions GetCurrentOptions()
         => GetOptions();
 
@@ -57,7 +108,21 @@ public sealed class Plugin : BasePluginSimpleUI<PluginOptions>
 
     protected override void OnOptionsSaved(PluginOptions options)
     {
-        _ = ReconcileManagedLibraryAsync(options);
+        _ = ApplyConfigurationAsync(options);
+    }
+
+    private async Task ApplyConfigurationAsync(PluginOptions options)
+    {
+        try
+        {
+            EnsureServices();
+            var sources = EmbySourceMapper.Map(options);
+            await _configurationCoordinator!.ApplyAsync(sources, default).ConfigureAwait(false);
+            await ReconcileManagedLibraryAsync(options).ConfigureAwait(false);
+        }
+        catch (Exception)
+        {
+        }
     }
 
     public override void OnUninstalling()
@@ -108,14 +173,42 @@ public sealed class Plugin : BasePluginSimpleUI<PluginOptions>
             _rcloneEnvironment = new RcloneEnvironment(runtimeManager, Path.Combine(dataDir, "rclone"));
 
             var resolver = new IaSourceResolver(SharedHttpClient);
-            var store = new FileSystemSourceSnapshotStore(Path.Combine(dataDir, "sources"));
-            _sourceRefresh = new SourceRefreshService(resolver, store);
-            _channelMapping = new ChannelMappingService(_sourceRefresh, store, new RcloneLoopbackGateway(_rcloneEnvironment));
+            _sourceStore = new FileSystemSourceSnapshotStore(Path.Combine(dataDir, "sources"));
+            _sourceRefresh = new SourceRefreshService(resolver, _sourceStore);
+            _channelMapping = new ChannelMappingService(_sourceRefresh, _sourceStore, new RcloneLoopbackGateway(_rcloneEnvironment));
+
+            _configurationCoordinator = new ConfigurationCoordinator(
+                _rcloneEnvironment,
+                _sourceRefresh,
+                _sourceStore,
+                resolver,
+                dataDir,
+                mount: null);
+
+            _diagnosticsBuilder = new DiagnosticsPackageBuilder();
 
             _managedLibrary = new EmbyManagedLibraryService(
                 _rcloneEnvironment,
                 resolver,
                 dataDir);
         }
+    }
+
+    public IEnumerable<PluginPageInfo> GetPages()
+    {
+        var prefix = GetType().Namespace;
+        return new[]
+        {
+            new PluginPageInfo
+            {
+                Name = "ArchiveMediaDriveStatus",
+                EmbeddedResourcePath = $"{prefix}.WebUI.ArchiveMediaDriveStatus.html",
+            },
+            new PluginPageInfo
+            {
+                Name = "ArchiveMediaDriveStatusjs",
+                EmbeddedResourcePath = $"{prefix}.WebUI.ArchiveMediaDriveStatus.js",
+            },
+        };
     }
 }

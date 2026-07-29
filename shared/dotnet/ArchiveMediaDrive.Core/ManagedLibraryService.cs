@@ -22,7 +22,7 @@ public sealed class ManagedLibraryService : IDisposable
 {
     private readonly RcloneMountSupervisor _supervisor;
     private readonly RcloneEnvironment _rcloneEnvironment;
-    private readonly IReadOnlyList<SourceDefinition> _sources;
+    private IReadOnlyList<SourceDefinition> _sources;
     private readonly IIaSourceResolver _resolver;
     private readonly string _libraryName;
     private bool _started;
@@ -57,13 +57,21 @@ public sealed class ManagedLibraryService : IDisposable
         if (_started)
             return;
 
-        await _rcloneEnvironment.EnsureReadyAsync(cancellationToken);
-        var hasSources = await _rcloneEnvironment.WriteCombineConfigAsync(_sources, _resolver, cancellationToken);
+        var hasSources = await UpdateSourcesAsync(_sources, cancellationToken);
         if (!hasSources)
             return;
 
         await _supervisor.StartAsync(cancellationToken);
         _started = true;
+    }
+
+    public async Task<bool> UpdateSourcesAsync(IReadOnlyList<SourceDefinition> sources, CancellationToken cancellationToken)
+    {
+        ThrowIfDisposed();
+        _sources = sources;
+
+        await _rcloneEnvironment.EnsureReadyAsync(cancellationToken);
+        return await _rcloneEnvironment.WriteCombineConfigAsync(_sources, _resolver, cancellationToken);
     }
 
     public async Task StopAsync(CancellationToken cancellationToken)

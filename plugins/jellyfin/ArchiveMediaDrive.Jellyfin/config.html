@@ -44,11 +44,49 @@
                         <span>Save</span>
                     </button>
                 </form>
+
+                <div class="amdStatusSection" style="margin-top: 2em;">
+                    <h3>Status</h3>
+                    <div class="statusField"><strong>Plugin version:</strong> <span id="PluginVersion">-</span></div>
+                    <div class="statusField"><strong>Host version:</strong> <span id="HostVersion">-</span></div>
+                    <div class="statusField"><strong>Runtime status:</strong> <span id="RuntimeStatus">-</span></div>
+                    <div class="statusField"><strong>rclone version:</strong> <span id="RcloneVersion">-</span></div>
+                    <div class="statusField"><strong>rclone hash:</strong> <span id="RcloneHash">-</span></div>
+                    <div class="statusField"><strong>Mount status:</strong> <span id="MountStatus">-</span></div>
+                    <div class="statusField"><strong>Mount path:</strong> <span id="MountPath">-</span></div>
+                    <div class="statusField"><strong>Cache usage:</strong> <span id="CacheUsage">-</span></div>
+                    <div class="statusField"><strong>Last refresh:</strong> <span id="LastRefresh">-</span></div>
+                    <div class="statusField"><strong>Source count:</strong> <span id="SourceCount">-</span></div>
+                    <div class="statusField"><strong>Item count:</strong> <span id="ItemCount">-</span></div>
+                    <div class="statusField"><strong>Last error:</strong> <span id="LastError">-</span></div>
+
+                    <button id="DownloadDiagnostics" type="button" is="emby-button" class="raised button-submit block">
+                        <span>Download diagnostics</span>
+                    </button>
+                </div>
             </div>
         </div>
         <script type="text/javascript">
             (function () {
                 var pluginId = '14c1491f-2509-4ea6-9226-613ca9971ed8';
+
+                function loadStatus() {
+                    ApiClient.getJSON(ApiClient.getUrl('ArchiveMediaDrive/status')).then(function (status) {
+                        document.getElementById('PluginVersion').textContent = status.version || '-';
+                        document.getElementById('HostVersion').textContent = status.hostVersion || '-';
+                        document.getElementById('RuntimeStatus').textContent = status.runtimeStatus || '-';
+                        document.getElementById('RcloneVersion').textContent = status.rcloneVersion || '-';
+                        document.getElementById('RcloneHash').textContent = status.rcloneHash || '-';
+                        document.getElementById('MountStatus').textContent = status.mountStatus || '-';
+                        document.getElementById('MountPath').textContent = status.mountPath || '-';
+                        document.getElementById('CacheUsage').textContent = status.cacheUsage ? (status.cacheUsage / 1024 / 1024).toFixed(2) + ' MB' : '-';
+                        document.getElementById('LastRefresh').textContent = status.lastRefresh ? new Date(status.lastRefresh).toLocaleString() : '-';
+                        document.getElementById('SourceCount').textContent = status.sourceCount != null ? status.sourceCount : '-';
+                        document.getElementById('ItemCount').textContent = status.itemCount != null ? status.itemCount : '-';
+                        document.getElementById('LastError').textContent = status.lastError || '-';
+                    });
+                }
+
                 document.querySelector('.amdConfigPage').addEventListener('pageshow', function () {
                     Dashboard.showLoadingMsg();
                     ApiClient.getPluginConfiguration(pluginId).then(function (config) {
@@ -56,9 +94,11 @@
                         document.getElementById('ChannelEnabled').checked = config.ChannelEnabled !== false;
                         document.getElementById('ManagedLibraryEnabled').checked = config.ManagedLibraryEnabled === true;
                         document.getElementById('ManagedLibraryName').value = config.ManagedLibraryName || 'Internet Archive';
+                        loadStatus();
                         Dashboard.hideLoadingMsg();
                     });
                 });
+
                 document.querySelector('.amdConfigForm').addEventListener('submit', function (e) {
                     e.preventDefault();
                     Dashboard.showLoadingMsg();
@@ -68,9 +108,22 @@
                         config.ManagedLibraryEnabled = document.getElementById('ManagedLibraryEnabled').checked;
                         config.ManagedLibraryName = document.getElementById('ManagedLibraryName').value;
                         ApiClient.updatePluginConfiguration(pluginId, config).then(function () {
+                            return ApiClient.ajax({
+                                type: 'POST',
+                                url: ApiClient.getUrl('ArchiveMediaDrive/apply')
+                            });
+                        }).then(function () {
+                            Dashboard.processPluginConfigurationUpdateResult();
+                            loadStatus();
+                        }).catch(function () {
                             Dashboard.processPluginConfigurationUpdateResult();
                         });
                     });
+                });
+
+                document.getElementById('DownloadDiagnostics').addEventListener('click', function () {
+                    var url = ApiClient.getUrl('ArchiveMediaDrive/diagnostics');
+                    window.location.href = url;
                 });
             })();
         </script>

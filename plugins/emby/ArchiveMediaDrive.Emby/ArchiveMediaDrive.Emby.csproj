@@ -10,4 +10,9 @@
     <PackageReference Include="MediaBrowser.Server.Core" ExcludeAssets="runtime" />
     <ProjectReference Include="../../../shared/dotnet/ArchiveMediaDrive.Core/ArchiveMediaDrive.Core.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="WebUI\ArchiveMediaDriveStatus.html" />
+    <EmbeddedResource Include="WebUI\ArchiveMediaDriveStatus.js" />
+  </ItemGroup>
 </Project>
