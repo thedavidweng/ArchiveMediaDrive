@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
@@ -82,12 +83,12 @@ public sealed class RcloneEnvironment
             File.WriteAllText(ConfigPath, $"[{RemoteName}]\ntype = internetarchive\n");
     }
 
-    public async Task WriteCombineConfigAsync(
+    public async Task<bool> WriteCombineConfigAsync(
         IReadOnlyList<SourceDefinition> sources,
         IIaSourceResolver resolver,
         CancellationToken cancellationToken)
     {
-        await EnsureReadyAsync(cancellationToken);
+        var rcloneBinary = await EnsureReadyAsync(cancellationToken);
         Directory.CreateDirectory(_configDirectory);
 
         var sb = new StringBuilder();
@@ -124,14 +125,91 @@ public sealed class RcloneEnvironment
             }
         }
 
-        if (upstreams.Count > 0)
+        if (upstreams.Count == 0)
+            return false;
+
+        sb.AppendLine($"[{LibraryRemoteName}]");
+        sb.AppendLine("type = combine");
+        sb.AppendLine($"upstreams = {string.Join(" ", upstreams)}");
+
+        var candidate = ConfigPath + ".new";
+        var previous = ConfigPath + ".previous";
+        var configText = sb.ToString();
+
+        await Task.Run(() => File.WriteAllText(candidate, configText), cancellationToken);
+
+        if (!await ValidateConfigAsync(rcloneBinary, candidate, cancellationToken))
         {
-            sb.AppendLine($"[{LibraryRemoteName}]");
-            sb.AppendLine("type = combine");
-            sb.AppendLine($"upstreams = {string.Join(" ", upstreams)}");
+            TryDelete(candidate);
+            return false;
         }
 
-        await Task.Run(() => File.WriteAllText(ConfigPath, sb.ToString()), cancellationToken);
+        await Task.Run(() =>
+        {
+            if (File.Exists(ConfigPath))
+            {
+                TryDelete(previous);
+                File.Replace(candidate, ConfigPath, previous);
+            }
+            else
+            {
+                File.Move(candidate, ConfigPath);
+            }
+        }, cancellationToken);
+
+        return true;
+    }
+
+    private static async Task<bool> ValidateConfigAsync(string rcloneBinary, string configPath, CancellationToken cancellationToken)
+    {
+        if (!File.Exists(rcloneBinary))
+            return false;
+
+        return await RunRcloneCheckAsync(rcloneBinary, $"config show --config \"{configPath}\"", cancellationToken) &&
+               await RunRcloneCheckAsync(rcloneBinary, $"lsf \"{LibraryRemoteName}:\" --config \"{configPath}\" --max-depth 0", cancellationToken);
+    }
+
+    private static async Task<bool> RunRcloneCheckAsync(string rcloneBinary, string arguments, CancellationToken cancellationToken)
+    {
+        var psi = new ProcessStartInfo(rcloneBinary, arguments)
+        {
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+        };
+
+        try
+        {
+            using var proc = Process.Start(psi);
+            if (proc is null)
+                return false;
+
+            var stdoutTask = proc.StandardOutput.ReadToEndAsync();
+            var stderrTask = proc.StandardError.ReadToEndAsync();
+
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            cts.CancelAfter(TimeSpan.FromSeconds(15));
+
+            while (!proc.HasExited)
+            {
+                cts.Token.ThrowIfCancellationRequested();
+                proc.WaitForExit(100);
+            }
+
+            await stdoutTask;
+            await stderrTask;
+
+            return proc.ExitCode == 0;
+        }
+        catch (OperationCanceledException)
+        {
+            return false;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     private static string SanitizeDirectoryName(string name)
@@ -170,5 +248,17 @@ public sealed class RcloneEnvironment
         }
 
         return await task;
+    }
+
+    private static void TryDelete(string path)
+    {
+        try
+        {
+            if (File.Exists(path))
+                File.Delete(path);
+        }
+        catch
+        {
+        }
     }
 }

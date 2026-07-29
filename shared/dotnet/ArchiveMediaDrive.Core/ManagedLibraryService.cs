@@ -58,7 +58,10 @@ public sealed class ManagedLibraryService : IDisposable
             return;
 
         await _rcloneEnvironment.EnsureReadyAsync(cancellationToken);
-        await _rcloneEnvironment.WriteCombineConfigAsync(_sources, _resolver, cancellationToken);
+        var hasSources = await _rcloneEnvironment.WriteCombineConfigAsync(_sources, _resolver, cancellationToken);
+        if (!hasSources)
+            return;
+
         await _supervisor.StartAsync(cancellationToken);
         _started = true;
     }
