@@ -1,3 +1,7 @@
+## Writing rules
+
+Use ASD-STE100 Simplified Technical English for prose in glossary definitions, ADRs, and docs. Keep sentences short. Use approved verbs and words. One idea per sentence.
+
 ## Agent skills
 
 ### Issue tracker
