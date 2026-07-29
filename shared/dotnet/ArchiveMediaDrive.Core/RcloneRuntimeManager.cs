@@ -111,10 +111,16 @@ public sealed class RcloneRuntimeException : Exception
 
 public sealed class RcloneRuntimeManager : IRcloneRuntimeManager
 {
+    private const long MaxDownloadBytes = 128L * 1024 * 1024;
+    private const long MaxExtractedTotalBytes = 256L * 1024 * 1024;
+    private const int MaxExtractedFiles = 1024;
+    private const int DownloadBufferSize = 8192;
+
     private readonly string _dataDirectory;
     private readonly RcloneManifest _manifest;
     private readonly IAssetDownloader _downloader;
     private readonly string _rid;
+    private readonly SemaphoreSlim _installLock = new(1, 1);
 
     public RcloneRuntimeManager(string dataDirectory, RcloneManifest manifest, IAssetDownloader downloader, string rid)
     {
@@ -134,19 +140,27 @@ public sealed class RcloneRuntimeManager : IRcloneRuntimeManager
 
     public async Task<string> EnsureInstalledAsync(CancellationToken cancellationToken)
     {
-        if (File.Exists(ExecutablePath) && File.Exists(ReceiptPath))
+        await _installLock.WaitAsync(cancellationToken);
+        try
         {
-            try
+            if (File.Exists(ExecutablePath) && File.Exists(ReceiptPath))
             {
-                await VerifyAsync(cancellationToken);
-                return ExecutablePath;
+                try
+                {
+                    await VerifyAsync(cancellationToken);
+                    return ExecutablePath;
+                }
+                catch (RcloneRuntimeException)
+                {
+                }
             }
-            catch (RcloneRuntimeException)
-            {
-            }
-        }
 
-        return await InstallCoreAsync(cancellationToken);
+            return await InstallCoreAsync(cancellationToken);
+        }
+        finally
+        {
+            _installLock.Release();
+        }
     }
 
     public async Task RepairAsync(CancellationToken cancellationToken)
@@ -156,19 +170,18 @@ public sealed class RcloneRuntimeManager : IRcloneRuntimeManager
 
     private async Task<string> InstallCoreAsync(CancellationToken cancellationToken)
     {
-
         if (!_manifest.Assets.TryGetValue(_rid, out var asset))
             throw new RcloneRuntimeException($"unsupported architecture: no rclone package for RID '{_rid}'");
 
         Directory.CreateDirectory(RuntimeDirectory);
-        var tempArchive = Path.Combine(RuntimeDirectory, ".download.zip");
-        var tempExtract = Path.Combine(RuntimeDirectory, ".extract");
+        var tempArchive = Path.Combine(RuntimeDirectory, $".download-{Guid.NewGuid():N}.zip");
+        var tempExtract = Path.Combine(RuntimeDirectory, $".extract-{Guid.NewGuid():N}");
         try
         {
             using (var stream = await _downloader.OpenAsync(asset.Filename, cancellationToken))
             using (var file = File.Create(tempArchive))
             {
-                await stream.CopyToAsync(file);
+                await CopyWithLimitAsync(stream, file, MaxDownloadBytes, cancellationToken);
             }
 
             var actualHash = ComputeSha256(tempArchive);
@@ -181,9 +194,7 @@ public sealed class RcloneRuntimeManager : IRcloneRuntimeManager
 
             using (var archive = new ZipArchive(File.OpenRead(tempArchive), ZipArchiveMode.Read))
             {
-                ValidateArchiveSafety(archive);
-                var rcloneEntry = FindRcloneEntry(archive)
-                    ?? throw new RcloneRuntimeException($"archive {asset.Filename} does not contain a rclone executable");
+                var rcloneEntry = ValidateArchiveSafety(archive);
 
                 var fullTarget = Path.GetFullPath(Path.Combine(tempExtract, "rclone"));
                 var entryFull = Path.GetFullPath(Path.Combine(tempExtract, rcloneEntry.FullName));
@@ -208,7 +219,9 @@ public sealed class RcloneRuntimeManager : IRcloneRuntimeManager
                 ExecutableSha256 = exeHash,
                 InstalledAt = DateTimeOffset.UtcNow,
             };
-            File.WriteAllText(ReceiptPath, JsonSerializer.Serialize(receipt, ArchiveMediaDriveJson.Options));
+            WriteReceipt(receipt, ReceiptPath);
+
+            CleanupOldVersions();
 
             return finalExe;
         }
@@ -236,11 +249,17 @@ public sealed class RcloneRuntimeManager : IRcloneRuntimeManager
         if (receipt is null)
             throw new RcloneRuntimeException("rclone receipt is invalid");
 
+        if (!_manifest.Assets.TryGetValue(_rid, out var asset))
+            throw new RcloneRuntimeException($"unsupported architecture: no rclone package for RID '{_rid}'");
+
         if (!string.Equals(receipt.Version, _manifest.Version, StringComparison.Ordinal))
             throw new RcloneRuntimeException($"rclone version mismatch: receipt has {receipt.Version}, manifest has {_manifest.Version}");
 
         if (!string.Equals(receipt.Rid, _rid, StringComparison.Ordinal))
             throw new RcloneRuntimeException($"rclone RID mismatch: receipt has {receipt.Rid}, expected {_rid}");
+
+        if (!string.Equals(receipt.ArchiveSha256, asset.Sha256, StringComparison.OrdinalIgnoreCase))
+            throw new RcloneRuntimeException($"rclone archive checksum mismatch: receipt has {receipt.ArchiveSha256}, expected {asset.Sha256}");
 
         var actualExeHash = ComputeSha256(ExecutablePath);
         if (!string.Equals(actualExeHash, receipt.ExecutableSha256, StringComparison.OrdinalIgnoreCase))
@@ -256,20 +275,26 @@ public sealed class RcloneRuntimeManager : IRcloneRuntimeManager
         return Task.CompletedTask;
     }
 
-    private static ZipArchiveEntry? FindRcloneEntry(ZipArchive archive)
+    private static async Task CopyWithLimitAsync(Stream source, FileStream destination, long maxBytes, CancellationToken cancellationToken)
     {
-        foreach (var entry in archive.Entries)
+        var buffer = new byte[DownloadBufferSize];
+        long total = 0;
+        int read;
+        while ((read = await source.ReadAsync(buffer, 0, buffer.Length, cancellationToken)) > 0)
         {
-            var name = Path.GetFileName(entry.FullName);
-            if (string.IsNullOrEmpty(name)) continue;
-            if (name.Equals("rclone", StringComparison.Ordinal) || name.Equals("rclone.exe", StringComparison.Ordinal))
-                return entry;
+            total += read;
+            if (total > maxBytes)
+                throw new RcloneRuntimeException($"download exceeds maximum size of {maxBytes} bytes");
+            await destination.WriteAsync(buffer, 0, read, cancellationToken);
         }
-        return null;
     }
 
-    private static void ValidateArchiveSafety(ZipArchive archive)
+    private static ZipArchiveEntry ValidateArchiveSafety(ZipArchive archive)
     {
+        var count = 0;
+        long totalSize = 0;
+        ZipArchiveEntry? rcloneEntry = null;
+
         foreach (var entry in archive.Entries)
         {
             if (entry.FullName.Length == 0) continue;
@@ -277,7 +302,23 @@ public sealed class RcloneRuntimeManager : IRcloneRuntimeManager
                 throw new RcloneRuntimeException($"archive contains path traversal entry: {entry.FullName}");
             if (Path.IsPathRooted(entry.FullName))
                 throw new RcloneRuntimeException($"archive contains absolute path entry: {entry.FullName}");
+
+            count++;
+            totalSize += entry.Length;
+            if (count > MaxExtractedFiles)
+                throw new RcloneRuntimeException($"archive contains more than {MaxExtractedFiles} entries");
+            if (totalSize > MaxExtractedTotalBytes)
+                throw new RcloneRuntimeException($"archive extracted size exceeds {MaxExtractedTotalBytes} bytes");
+
+            var name = Path.GetFileName(entry.FullName);
+            if (!string.IsNullOrEmpty(name) &&
+                (name.Equals("rclone", StringComparison.Ordinal) || name.Equals("rclone.exe", StringComparison.Ordinal)))
+            {
+                rcloneEntry = entry;
+            }
         }
+
+        return rcloneEntry ?? throw new RcloneRuntimeException("archive does not contain a rclone executable");
     }
 
     private static string ComputeSha256(string path)
@@ -310,6 +351,47 @@ public sealed class RcloneRuntimeManager : IRcloneRuntimeManager
         }
         catch (Win32Exception)
         {
+        }
+    }
+
+    private static void WriteReceipt(RcloneReceipt receipt, string path)
+    {
+        var directory = Path.GetDirectoryName(path)!;
+        var json = JsonSerializer.Serialize(receipt, ArchiveMediaDriveJson.Options);
+        var temp = Path.Combine(directory, $"receipt.json.new-{Guid.NewGuid():N}");
+        try
+        {
+            File.WriteAllText(temp, json);
+            if (File.Exists(path))
+            {
+                var backup = path + ".previous";
+                if (File.Exists(backup))
+                    File.Delete(backup);
+                File.Replace(temp, path, backup);
+            }
+            else
+            {
+                File.Move(temp, path);
+            }
+        }
+        finally
+        {
+            try { if (File.Exists(temp)) File.Delete(temp); } catch { }
+        }
+    }
+
+    private void CleanupOldVersions()
+    {
+        var current = Path.GetFullPath(RuntimeDirectory);
+        var others = Directory.GetDirectories(_dataDirectory, "rclone-*")
+            .Select(Path.GetFullPath)
+            .Where(d => !d.Equals(current, StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(d => new DirectoryInfo(d).LastWriteTimeUtc)
+            .ToList();
+
+        foreach (var dir in others.Skip(1))
+        {
+            try { Directory.Delete(dir, true); } catch { }
         }
     }
 }
