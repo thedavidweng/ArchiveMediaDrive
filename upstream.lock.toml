@@ -21,9 +21,9 @@ target_framework = "net9.0"
 
 [emby]
 project = "MediaBrowser/Emby.SDK"
-stable_server_version = "4.9.3.0"
+stable_server_version = "4.9.5.0"
 server_core_package = "4.9.1.90"
-beta_test_version = "4.10.0.11-beta"
+beta_test_version = "4.10.0.20"
 target_framework = "netstandard2.0"
 
 [kodi]
@@ -31,4 +31,4 @@ stable_major = 21
 stable_codename = "Omega"
 prerelease_major = 22
 prerelease_codename = "Piers"
-prerelease_version = "Beta 1"
+prerelease_version = "Alpha 3"

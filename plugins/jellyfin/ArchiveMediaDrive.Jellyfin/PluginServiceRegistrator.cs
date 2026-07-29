@@ -1,13 +1,13 @@
-using MediaBrowser.Common.Plugins;
+using MediaBrowser.Controller;
+using MediaBrowser.Controller.Plugins;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace ArchiveMediaDrive.Jellyfin;
 
 public sealed class PluginServiceRegistrator : IPluginServiceRegistrator
 {
-    public void RegisterServices(IServiceCollection serviceCollection)
+    public void RegisterServices(IServiceCollection serviceCollection, IServerApplicationHost applicationHost)
     {
-        // TODO: register IIaSourceResolver, IRcloneRuntimeManager, IRcloneGateway,
-        // ArchiveMediaDriveChannel, scheduled refresh, and managed mount supervisor.
+        serviceCollection.AddSingleton<ArchiveMediaDriveChannel>();
     }
 }

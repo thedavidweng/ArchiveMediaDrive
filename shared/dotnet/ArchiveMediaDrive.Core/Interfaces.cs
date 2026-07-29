@@ -14,7 +14,11 @@ public interface IRcloneGateway
 
 public interface IRcloneRuntimeManager
 {
+    string ExecutablePath { get; }
+    string RuntimeDirectory { get; }
+    string ReceiptPath { get; }
     Task<string> EnsureInstalledAsync(CancellationToken cancellationToken);
     Task VerifyAsync(CancellationToken cancellationToken);
+    Task RepairAsync(CancellationToken cancellationToken);
     Task RemoveAsync(CancellationToken cancellationToken);
 }

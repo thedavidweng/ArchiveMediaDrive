@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "description": "Canonical Internet Archive fixtures captured with the official ia client. Regenerate with `amd fixtures --out contracts/fixtures/ia`. Do not edit by hand. No credentials, cookies, or signed URLs are stored; sanitize_metadata strips server, dir, and hash fields.",
+  "entries": [
+    {
+      "name": "item-mkv-unicode",
+      "type": "item",
+      "identifier": "0-28_20240219",
+      "covers": ["mkv file", "unicode filename"]
+    },
+    {
+      "name": "item-mp4-derivatives-audio-subtitles-nested",
+      "type": "item",
+      "identifier": "TripDown1905",
+      "covers": ["mp4 derivatives", "audio", "external subtitles", "nested paths"]
+    },
+    {
+      "name": "collection-prelinger-capped",
+      "type": "search",
+      "query": "collection:prelinger",
+      "cap": 50,
+      "covers": ["collection", "multi-page search"]
+    },
+    {
+      "name": "favorites-jake",
+      "type": "search",
+      "query": "collection:fav-jake",
+      "cap": 50,
+      "covers": ["favorites query form"],
+      "note": "Archive.org does not index fav- collections in the public search endpoint. The query form is contract-tested in test_ia.py. Replace with a user that has public favorites when one is identified."
+    },
+    {
+      "name": "search-movies-prelinger-capped",
+      "type": "search",
+      "query": "mediatype:movies AND collection:prelinger",
+      "cap": 100,
+      "covers": ["explicit search", "multi-page search"]
+    },
+    {
+      "name": "unavailable-item",
+      "type": "item",
+      "identifier": "this-item-does-not-exist-xyz-12345",
+      "covers": ["removed or unavailable item"],
+      "expectFailure": true
+    }
+  ]
+}

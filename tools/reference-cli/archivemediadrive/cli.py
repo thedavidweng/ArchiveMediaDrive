@@ -7,6 +7,7 @@ from pathlib import Path
 
 from .config import ConfigError, load_config
 from .doctor import run_checks
+from .fixtures import FixtureError, capture_manifest
 from .model import Paths
 from .rclone import RcloneError, exec_command, mount_command, webdav_command
 from .sync import synchronize
@@ -26,6 +27,10 @@ def _parser() -> argparse.ArgumentParser:
     commands.add_parser("doctor", help="check required external tools")
     commands.add_parser("sync", help="resolve configured sources and render rclone config")
     commands.add_parser("catalog", help="print the last synchronized catalog")
+
+    fixtures = commands.add_parser("fixtures", help="capture canonical Internet Archive fixtures using the official ia client")
+    fixtures.add_argument("--manifest", type=Path, default=Path("contracts/fixtures/ia/manifest.json"))
+    fixtures.add_argument("--out", type=Path, default=Path("contracts/fixtures/ia"))
 
     webdav = commands.add_parser("webdav", help="serve the virtual drive over WebDAV")
     webdav.add_argument("--address")
@@ -57,6 +62,14 @@ def main(argv: list[str] | None = None) -> int:
             for check in checks:
                 print(f"{'OK' if check.ok else 'FAIL'} {check.name}: {check.detail}")
             return 0 if all(check.ok for check in checks) else 1
+
+        if args.command == "fixtures":
+            results = capture_manifest(args.manifest, args.out, ia_binary=args.ia_binary)
+            for result in results:
+                status = result["status"]
+                detail = f" ({result['error']})" if "error" in result else ""
+                print(f"{status.upper():<16} {result['name']}{detail}")
+            return 0 if all(r["status"] in {"ok", "expected-failure"} for r in results) else 1
 
         config = load_config(args.config)
         if args.command in {"sync", "run"}:
@@ -95,6 +108,6 @@ def main(argv: list[str] | None = None) -> int:
             return exec_command(command)
 
         return 2
-    except (ConfigError, RcloneError, RuntimeError, OSError, json.JSONDecodeError) as exc:
+    except (ConfigError, RcloneError, FixtureError, RuntimeError, OSError, json.JSONDecodeError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1

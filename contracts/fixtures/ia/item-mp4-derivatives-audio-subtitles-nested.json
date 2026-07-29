@@ -1,0 +1,354 @@
+{
+  "schemaVersion": 1,
+  "identifier": "TripDown1905",
+  "mediatype": "movies",
+  "revision": "1118460670",
+  "publicdate": "2002-07-16 00:00:00",
+  "item_last_updated": 1780928112,
+  "metadata": {
+    "identifier": "TripDown1905",
+    "title": "[Trip Down Market Street Before the Fire, A]",
+    "mediatype": "movies",
+    "collection": "prelinger",
+    "publicdate": "2002-07-16 00:00:00",
+    "creator": "Miles Brothers"
+  },
+  "files": [
+    {
+      "name": "TripDown1905.asr.js",
+      "source": "original",
+      "format": "Unknown",
+      "size": 4622,
+      "mtime": "1472365953"
+    },
+    {
+      "name": "TripDown1905.asr.srt",
+      "source": "original",
+      "format": "SubRip",
+      "size": 0,
+      "mtime": "1472365953"
+    },
+    {
+      "name": "TripDown1905.gif",
+      "source": "derivative",
+      "format": "Animated GIF",
+      "size": 359646,
+      "mtime": "1228070129"
+    },
+    {
+      "name": "TripDown1905.mp3",
+      "source": "derivative",
+      "format": "MP3",
+      "size": 6659072,
+      "mtime": "1472174809"
+    },
+    {
+      "name": "TripDown1905.mp4",
+      "source": "derivative",
+      "format": "h.264",
+      "size": 86528037,
+      "mtime": "1416107056"
+    },
+    {
+      "name": "TripDown1905.mpeg",
+      "source": "original",
+      "format": "MPEG2",
+      "size": 331287845,
+      "mtime": "1048192027"
+    },
+    {
+      "name": "TripDown1905.mpeg.idx",
+      "source": "derivative",
+      "format": "Video Index",
+      "size": 685921,
+      "mtime": "1416101165"
+    },
+    {
+      "name": "TripDown1905.ogv",
+      "source": "derivative",
+      "format": "Ogg Video",
+      "size": 59281439,
+      "mtime": "1228072458"
+    },
+    {
+      "name": "TripDown1905.png",
+      "source": "derivative",
+      "format": "PNG",
+      "size": 3954,
+      "mtime": "1472174836"
+    },
+    {
+      "name": "TripDown1905.storj-store.log",
+      "source": "derivative",
+      "format": "Storj Upload Log",
+      "size": 0,
+      "mtime": "1643046206"
+    },
+    {
+      "name": "TripDown1905.storj-store.trigger",
+      "source": "original",
+      "format": "Storj Upload Trigger",
+      "size": 0,
+      "mtime": "1643045857"
+    },
+    {
+      "name": "TripDown1905.thumbs/TripDown1905_000001.jpg",
+      "source": "derivative",
+      "format": "Thumbnail",
+      "size": 7668,
+      "mtime": "1228069988"
+    },
+    {
+      "name": "TripDown1905.thumbs/TripDown1905_000030.jpg",
+      "source": "derivative",
+      "format": "Thumbnail",
+      "size": 6196,
+      "mtime": "1228069990"
+    },
+    {
+      "name": "TripDown1905.thumbs/TripDown1905_000060.jpg",
+      "source": "derivative",
+      "format": "Thumbnail",
+      "size": 6504,
+      "mtime": "1228069992"
+    },
+    {
+      "name": "TripDown1905.thumbs/TripDown1905_000090.jpg",
+      "source": "derivative",
+      "format": "Thumbnail",
+      "size": 7547,
+      "mtime": "1228069994"
+    },
+    {
+      "name": "TripDown1905.thumbs/TripDown1905_000120.jpg",
+      "source": "derivative",
+      "format": "Thumbnail",
+      "size": 7621,
+      "mtime": "1228069996"
+    },
+    {
+      "name": "TripDown1905.thumbs/TripDown1905_000150.jpg",
+      "source": "derivative",
+      "format": "Thumbnail",
+      "size": 7398,
+      "mtime": "1228069997"
+    },
+    {
+      "name": "TripDown1905.thumbs/TripDown1905_000180.jpg",
+      "source": "derivative",
+      "format": "Thumbnail",
+      "size": 7374,
+      "mtime": "1228070000"
+    },
+    {
+      "name": "TripDown1905.thumbs/TripDown1905_000210.jpg",
+      "source": "derivative",
+      "format": "Thumbnail",
+      "size": 6951,
+      "mtime": "1228070002"
+    },
+    {
+      "name": "TripDown1905.thumbs/TripDown1905_000240.jpg",
+      "source": "derivative",
+      "format": "Thumbnail",
+      "size": 8373,
+      "mtime": "1228070005"
+    },
+    {
+      "name": "TripDown1905.thumbs/TripDown1905_000270.jpg",
+      "source": "derivative",
+      "format": "Thumbnail",
+      "size": 7837,
+      "mtime": "1228070008"
+    },
+    {
+      "name": "TripDown1905.thumbs/TripDown1905_000300.jpg",
+      "source": "derivative",
+      "format": "Thumbnail",
+      "size": 7604,
+      "mtime": "1228070010"
+    },
+    {
+      "name": "TripDown1905.thumbs/TripDown1905_000330.jpg",
+      "source": "derivative",
+      "format": "Thumbnail",
+      "size": 7285,
+      "mtime": "1228070013"
+    },
+    {
+      "name": "TripDown1905.thumbs/TripDown1905_000360.jpg",
+      "source": "derivative",
+      "format": "Thumbnail",
+      "size": 7268,
+      "mtime": "1228070016"
+    },
+    {
+      "name": "TripDown1905.thumbs/TripDown1905_000390.jpg",
+      "source": "derivative",
+      "format": "Thumbnail",
+      "size": 8356,
+      "mtime": "1228070017"
+    },
+    {
+      "name": "TripDown1905.thumbs/TripDown1905_000420.jpg",
+      "source": "derivative",
+      "format": "Thumbnail",
+      "size": 6778,
+      "mtime": "1228070019"
+    },
+    {
+      "name": "TripDown1905.thumbs/TripDown1905_000450.jpg",
+      "source": "derivative",
+      "format": "Thumbnail",
+      "size": 6934,
+      "mtime": "1228070021"
+    },
+    {
+      "name": "TripDown1905.thumbs/TripDown1905_000480.jpg",
+      "source": "derivative",
+      "format": "Thumbnail",
+      "size": 7518,
+      "mtime": "1228070023"
+    },
+    {
+      "name": "TripDown1905.thumbs/TripDown1905_000510.jpg",
+      "source": "derivative",
+      "format": "Thumbnail",
+      "size": 7212,
+      "mtime": "1228070025"
+    },
+    {
+      "name": "TripDown1905.thumbs/TripDown1905_000540.jpg",
+      "source": "derivative",
+      "format": "Thumbnail",
+      "size": 8158,
+      "mtime": "1228070026"
+    },
+    {
+      "name": "TripDown1905.thumbs/TripDown1905_000570.jpg",
+      "source": "derivative",
+      "format": "Thumbnail",
+      "size": 7924,
+      "mtime": "1228070028"
+    },
+    {
+      "name": "TripDown1905.thumbs/TripDown1905_000600.jpg",
+      "source": "derivative",
+      "format": "Thumbnail",
+      "size": 7970,
+      "mtime": "1228070030"
+    },
+    {
+      "name": "TripDown1905.thumbs/TripDown1905_000630.jpg",
+      "source": "derivative",
+      "format": "Thumbnail",
+      "size": 8347,
+      "mtime": "1228070033"
+    },
+    {
+      "name": "TripDown1905.thumbs/TripDown1905_000660.jpg",
+      "source": "derivative",
+      "format": "Thumbnail",
+      "size": 8294,
+      "mtime": "1228070035"
+    },
+    {
+      "name": "TripDown1905.thumbs/TripDown1905_000690.jpg",
+      "source": "derivative",
+      "format": "Thumbnail",
+      "size": 7604,
+      "mtime": "1228070038"
+    },
+    {
+      "name": "TripDown1905.thumbs/TripDown1905_000720.jpg",
+      "source": "derivative",
+      "format": "Thumbnail",
+      "size": 8015,
+      "mtime": "1228070040"
+    },
+    {
+      "name": "TripDown1905.thumbs/TripDown1905_000750.jpg",
+      "source": "derivative",
+      "format": "Thumbnail",
+      "size": 6975,
+      "mtime": "1228070043"
+    },
+    {
+      "name": "TripDown1905.thumbs/TripDown1905_000780.jpg",
+      "source": "derivative",
+      "format": "Thumbnail",
+      "size": 7715,
+      "mtime": "1228070046"
+    },
+    {
+      "name": "TripDown1905.thumbs/TripDown1905_000810.jpg",
+      "source": "derivative",
+      "format": "Thumbnail",
+      "size": 8131,
+      "mtime": "1228070048"
+    },
+    {
+      "name": "TripDown1905_256kb.rm",
+      "source": "original",
+      "format": "256Kb Real Media",
+      "size": 145442232,
+      "mtime": "1048191823"
+    },
+    {
+      "name": "TripDown1905_512kb.mp4",
+      "source": "derivative",
+      "format": "512Kb MPEG4",
+      "size": 58837889,
+      "mtime": "1228071725"
+    },
+    {
+      "name": "TripDown1905_64kb.rm",
+      "source": "original",
+      "format": "64Kb Real Media",
+      "size": 61022695,
+      "mtime": "1048191807"
+    },
+    {
+      "name": "TripDown1905_archive.torrent",
+      "source": "metadata",
+      "format": "Archive BitTorrent",
+      "size": 32697,
+      "mtime": "1691356143"
+    },
+    {
+      "name": "TripDown1905_files.xml",
+      "source": "metadata",
+      "format": "Metadata",
+      "size": null,
+      "mtime": null
+    },
+    {
+      "name": "TripDown1905_meta.sqlite",
+      "source": "original",
+      "format": "Metadata",
+      "size": 20480,
+      "mtime": "1643045862"
+    },
+    {
+      "name": "TripDown1905_meta.xml",
+      "source": "metadata",
+      "format": "Metadata",
+      "size": 13754,
+      "mtime": "1691356077"
+    },
+    {
+      "name": "TripDown1905_reviews.xml",
+      "source": "metadata",
+      "format": "Metadata",
+      "size": 23799,
+      "mtime": "1780928110"
+    },
+    {
+      "name": "__ia_thumb.jpg",
+      "source": "original",
+      "format": "Item Tile",
+      "size": 7444,
+      "mtime": "1643045893"
+    }
+  ]
+}

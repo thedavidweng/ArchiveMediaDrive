@@ -1,0 +1,78 @@
+{
+  "schemaVersion": 1,
+  "description": "Shared source fixtures exercised by both Kodi Python and .NET contract tests. Each entry has an input (raw value before normalization) and an expected normalized source.",
+  "sources": [
+    {
+      "id": "tripdown",
+      "name": "Trip Down",
+      "kind": "item",
+      "value": "https://archive.org/details/TripDown1905",
+      "enabled": true,
+      "refreshMinutes": 360,
+      "authenticationRef": null
+    },
+    {
+      "id": "prelinger",
+      "name": "Prelinger",
+      "kind": "collection",
+      "value": "prelinger",
+      "enabled": true,
+      "refreshMinutes": 720,
+      "authenticationRef": null
+    },
+    {
+      "id": "prelinger-url",
+      "name": "Prelinger (URL)",
+      "kind": "collection",
+      "value": "https://archive.org/details/prelinger",
+      "enabled": false,
+      "refreshMinutes": 1440,
+      "authenticationRef": null
+    },
+    {
+      "id": "david-favs",
+      "name": "David Favorites",
+      "kind": "favorites",
+      "value": "fav-david",
+      "enabled": true,
+      "refreshMinutes": 360,
+      "authenticationRef": "ia-creds"
+    },
+    {
+      "id": "david-favs-plain",
+      "name": "David Favorites (username)",
+      "kind": "favorites",
+      "value": "david",
+      "enabled": true,
+      "refreshMinutes": 360,
+      "authenticationRef": null
+    },
+    {
+      "id": "movie-search",
+      "name": "Movie Search",
+      "kind": "search",
+      "value": "mediatype:movies AND collection:prelinger",
+      "enabled": true,
+      "refreshMinutes": 60,
+      "authenticationRef": null
+    },
+    {
+      "id": "unicode-name",
+      "name": "Films — 日本語 & spaces",
+      "kind": "search",
+      "value": "mediatype:movies",
+      "enabled": true,
+      "refreshMinutes": 360,
+      "authenticationRef": null
+    },
+    {
+      "id": "slash-like-name",
+      "name": "A / B \\ C",
+      "kind": "item",
+      "value": "TripDown1905",
+      "enabled": true,
+      "refreshMinutes": 360,
+      "authenticationRef": null
+    }
+  ]
+}

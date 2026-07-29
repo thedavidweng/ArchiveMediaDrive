@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://archivemediadrive.dev/contracts/runtime-request.schema.json",
+  "title": "ArchiveMediaDrive Runtime Request",
+  "description": "Operations sent to the pinned rclone runtime through rc --loopback or a supervised mount.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "operation",
+    "identifier"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "operation": {
+      "enum": [
+        "probe",
+        "list",
+        "link",
+        "stat",
+        "mount",
+        "unmount",
+        "health"
+      ]
+    },
+    "identifier": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "relativePath": {
+      "type": "string",
+      "default": ""
+    },
+    "mountId": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 128
+    },
+    "authenticationRef": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 128
+    }
+  }
+}

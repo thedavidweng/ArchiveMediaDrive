@@ -1,0 +1,6 @@
+{
+  "schemaVersion": 1,
+  "identifier": "this-item-does-not-exist-xyz-12345",
+  "error": "metadata is missing identifier",
+  "expectFailure": true
+}
