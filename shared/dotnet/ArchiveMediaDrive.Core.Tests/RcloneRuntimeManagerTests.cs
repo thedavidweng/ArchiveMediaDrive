@@ -189,4 +189,36 @@ public sealed class RcloneRuntimeManagerTests
             Directory.Delete(tmp, true);
         }
     }
+
+    [Fact]
+    public async Task Ensure_installed_repairs_when_existing_executable_is_corrupted()
+    {
+        var rid = "linux-x64";
+        var filename = "rclone-v1.74.4-linux-amd64.zip";
+        var top = TopDir(filename);
+        var goodBytes = Encoding.UTF8.GetBytes("rclone-good");
+        var archive = MakeZip(($"{top}/rclone", goodBytes, true));
+
+        var tmp = Path.Combine(Path.GetTempPath(), "amd-rt-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tmp);
+        try
+        {
+            var downloader = new FakeAssetDownloader(_ => new MemoryStream(archive));
+            var manager = new RcloneRuntimeManager(tmp, ManifestFor(rid, archive, filename), downloader, rid);
+
+            var exe = await manager.EnsureInstalledAsync(CancellationToken.None);
+            Assert.Equal(goodBytes, File.ReadAllBytes(exe));
+
+            File.WriteAllBytes(exe, Encoding.UTF8.GetBytes("corrupted"));
+
+            var repaired = await manager.EnsureInstalledAsync(CancellationToken.None);
+
+            Assert.Equal(exe, repaired);
+            Assert.Equal(goodBytes, File.ReadAllBytes(repaired));
+        }
+        finally
+        {
+            Directory.Delete(tmp, true);
+        }
+    }
 }

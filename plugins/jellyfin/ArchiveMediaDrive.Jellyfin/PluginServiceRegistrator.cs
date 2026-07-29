@@ -16,13 +16,16 @@ public sealed class PluginServiceRegistrator : IPluginServiceRegistrator
         var dataDir = Path.Combine(plugin.ApplicationPaths.ProgramDataPath, "plugins", "ArchiveMediaDrive");
         Directory.CreateDirectory(dataDir);
 
-        serviceCollection.AddSingleton<IRcloneRuntimeManager>(_ =>
+        serviceCollection.AddSingleton<HttpClient>();
+
+        serviceCollection.AddSingleton<IRcloneRuntimeManager>(sp =>
         {
+            var http = sp.GetRequiredService<HttpClient>();
             var manifestPath = Path.Combine(dataDir, "runtime", "rclone", "manifest.json");
             var manifest = File.Exists(manifestPath)
                 ? RcloneManifestLoader.Load(manifestPath)
                 : RcloneManifestLoader.Load(Path.Combine("runtime", "rclone", "manifest.json"));
-            var downloader = new HttpAssetDownloader(new HttpClient(), manifest.ReleaseBaseUrl);
+            var downloader = new HttpAssetDownloader(http, manifest.ReleaseBaseUrl);
             var rid = RcloneEnvironment.DetectRid();
             return new RcloneRuntimeManager(dataDir, manifest, downloader, rid);
         });
@@ -46,26 +49,31 @@ public sealed class PluginServiceRegistrator : IPluginServiceRegistrator
 
         serviceCollection.AddSingleton<IReadOnlyList<SourceDefinition>>(_ =>
         {
-            return LoadSources(plugin.Configuration.SourcesJson);
+            var plugin = Plugin.Instance;
+            var config = plugin?.Configuration ?? new PluginConfiguration();
+            return LoadSources(config.SourcesJson);
         });
 
         serviceCollection.AddSingleton<ChannelService>();
         serviceCollection.AddSingleton<ArchiveMediaDriveChannel>();
 
-        if (plugin.Configuration.ManagedLibraryEnabled)
+        serviceCollection.AddSingleton<ManagedLibraryService>(sp =>
         {
-            serviceCollection.AddSingleton<ManagedLibraryService>(sp =>
-            {
-                var env = sp.GetRequiredService<RcloneEnvironment>();
-                var mountPoint = Path.Combine(dataDir, "mount");
-                return new ManagedLibraryService(
-                    new ProcessMountProcessFactory(),
-                    env,
-                    mountPoint,
-                    plugin.Configuration.ManagedLibraryName);
-            });
-            serviceCollection.AddHostedService<ManagedLibraryHostedService>();
-        }
+            var env = sp.GetRequiredService<RcloneEnvironment>();
+            var resolver = sp.GetRequiredService<IIaSourceResolver>();
+            var sources = sp.GetRequiredService<IReadOnlyList<SourceDefinition>>();
+            var plugin = Plugin.Instance;
+            var config = plugin?.Configuration ?? new PluginConfiguration();
+            var mountPoint = Path.Combine(dataDir, "mount");
+            return new ManagedLibraryService(
+                new ProcessMountProcessFactory(),
+                env,
+                sources,
+                resolver,
+                mountPoint,
+                config.ManagedLibraryName);
+        });
+        serviceCollection.AddHostedService<ManagedLibraryHostedService>();
     }
 
     private static IReadOnlyList<SourceDefinition> LoadSources(string sourcesJson)

@@ -32,6 +32,23 @@ public sealed class ChannelMappingTests
             => Task.FromResult(new RcloneProbe { Version = "v1.74.4", Platform = "linux", Architecture = "arm64" });
     }
 
+    private sealed class FakeRuntimeManager : IRcloneRuntimeManager
+    {
+        public string ExecutablePath => "/tmp/amd-fake-rclone";
+        public string RuntimeDirectory => "/tmp/amd-fake-rclone-dir";
+        public string ReceiptPath => "/tmp/amd-fake-rclone-dir/receipt.json";
+        public Task<string> EnsureInstalledAsync(CancellationToken cancellationToken) => Task.FromResult(ExecutablePath);
+        public Task VerifyAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task RepairAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task RemoveAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+    }
+
+    private static RcloneEnvironment CreateEnvironment()
+    {
+        var configDir = Path.Combine(Path.GetTempPath(), "amd-test-config-" + Guid.NewGuid().ToString("N"));
+        return new RcloneEnvironment(new FakeRuntimeManager(), configDir);
+    }
+
     private static SourceDefinition[] Sources => new[]
     {
         new SourceDefinition { Id = "prelinger", Name = "Prelinger", Kind = SourceKind.Collection, Value = "prelinger" },
@@ -41,7 +58,7 @@ public sealed class ChannelMappingTests
     [Fact]
     public async Task Root_folder_lists_configured_sources_as_folders()
     {
-        var service = new ChannelService(new FakeResolver(), new FakeGateway(), Sources, NullLogger<ChannelService>.Instance);
+        var service = new ChannelService(new FakeResolver(), new FakeGateway(), CreateEnvironment(), Sources, NullLogger<ChannelService>.Instance);
 
         var result = await service.GetChannelItemsAsync(new InternalChannelItemQuery { FolderId = "" }, CancellationToken.None);
 
@@ -54,7 +71,7 @@ public sealed class ChannelMappingTests
     [Fact]
     public async Task Source_folder_lists_resolved_item_identifiers_as_folders()
     {
-        var service = new ChannelService(new FakeResolver(), new FakeGateway(), Sources, NullLogger<ChannelService>.Instance);
+        var service = new ChannelService(new FakeResolver(), new FakeGateway(), CreateEnvironment(), Sources, NullLogger<ChannelService>.Instance);
 
         var result = await service.GetChannelItemsAsync(new InternalChannelItemQuery { FolderId = "source/prelinger" }, CancellationToken.None);
 
@@ -66,7 +83,7 @@ public sealed class ChannelMappingTests
     [Fact]
     public async Task Item_folder_lists_files_and_directories_from_rclone()
     {
-        var service = new ChannelService(new FakeResolver(), new FakeGateway(), Sources, NullLogger<ChannelService>.Instance);
+        var service = new ChannelService(new FakeResolver(), new FakeGateway(), CreateEnvironment(), Sources, NullLogger<ChannelService>.Instance);
 
         var result = await service.GetChannelItemsAsync(new InternalChannelItemQuery { FolderId = "item/alpha" }, CancellationToken.None);
 
@@ -83,7 +100,7 @@ public sealed class ChannelMappingTests
     [Fact]
     public async Task Media_item_has_public_url_as_media_source()
     {
-        var service = new ChannelService(new FakeResolver(), new FakeGateway(), Sources, NullLogger<ChannelService>.Instance);
+        var service = new ChannelService(new FakeResolver(), new FakeGateway(), CreateEnvironment(), Sources, NullLogger<ChannelService>.Instance);
 
         var result = await service.GetChannelItemsAsync(new InternalChannelItemQuery { FolderId = "item/alpha" }, CancellationToken.None);
 
@@ -96,7 +113,7 @@ public sealed class ChannelMappingTests
     [Fact]
     public async Task Subdirectory_navigation_uses_relative_path()
     {
-        var service = new ChannelService(new FakeResolver(), new FakeGateway(), Sources, NullLogger<ChannelService>.Instance);
+        var service = new ChannelService(new FakeResolver(), new FakeGateway(), CreateEnvironment(), Sources, NullLogger<ChannelService>.Instance);
 
         var result = await service.GetChannelItemsAsync(new InternalChannelItemQuery { FolderId = "item/alpha/thumbs" }, CancellationToken.None);
 

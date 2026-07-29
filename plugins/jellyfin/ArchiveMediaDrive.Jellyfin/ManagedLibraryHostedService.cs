@@ -18,6 +18,13 @@ public sealed class ManagedLibraryHostedService : IHostedService, IDisposable
 
     public async Task StartAsync(CancellationToken cancellationToken)
     {
+        var config = Plugin.Instance?.Configuration ?? new PluginConfiguration();
+        if (!config.ManagedLibraryEnabled)
+        {
+            _logger.LogInformation("ArchiveMediaDrive Managed Library is disabled, skipping start");
+            return;
+        }
+
         try
         {
             await _managedLibrary.StartAsync(cancellationToken);

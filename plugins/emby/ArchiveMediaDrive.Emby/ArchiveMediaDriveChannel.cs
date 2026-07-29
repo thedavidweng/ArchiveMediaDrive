@@ -14,6 +14,8 @@ public sealed class ArchiveMediaDriveChannel : IChannel
     private readonly ChannelMappingService _mapping;
     private readonly RcloneEnvironment _rcloneEnvironment;
 
+    private static readonly HttpClient SharedHttpClient = new();
+
     public ArchiveMediaDriveChannel()
     {
         var plugin = Plugin.Instance;
@@ -27,12 +29,12 @@ public sealed class ArchiveMediaDriveChannel : IChannel
         var manifest = File.Exists(manifestPath)
             ? RcloneManifestLoader.Load(manifestPath)
             : RcloneManifestLoader.Load(Path.Combine("runtime", "rclone", "manifest.json"));
-        var downloader = new HttpAssetDownloader(new HttpClient(), manifest.ReleaseBaseUrl);
+        var downloader = new HttpAssetDownloader(SharedHttpClient, manifest.ReleaseBaseUrl);
         var rid = RcloneEnvironment.DetectRid();
         var runtimeManager = new RcloneRuntimeManager(dataDir, manifest, downloader, rid);
         _rcloneEnvironment = new RcloneEnvironment(runtimeManager, Path.Combine(dataDir, "rclone"));
 
-        var resolver = new IaSourceResolver(new HttpClient());
+        var resolver = new IaSourceResolver(SharedHttpClient);
         var gateway = new RcloneLoopbackGateway(runtimeManager, _rcloneEnvironment.ConfigPath);
         _mapping = new ChannelMappingService(resolver, gateway, sources);
     }
@@ -43,6 +45,10 @@ public sealed class ArchiveMediaDriveChannel : IChannel
 
     public async Task<ChannelItemResult> GetChannelItems(InternalChannelItemQuery query, CancellationToken cancellationToken)
     {
+        var config = Plugin.Instance?.Configuration ?? new PluginConfiguration();
+        if (!config.ChannelEnabled)
+            return new ChannelItemResult { Items = new List<ChannelItemInfo>(), TotalRecordCount = 0 };
+
         await _rcloneEnvironment.EnsureReadyAsync(cancellationToken);
         var page = await _mapping.GetItemsAsync(query.FolderId ?? "", cancellationToken);
         var items = page.Items.Select(MapToChannelItemInfo).ToList();

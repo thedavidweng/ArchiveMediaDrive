@@ -67,10 +67,10 @@ Development packaging:
 
 ```bash
 python plugins/kodi/build_vendor.py
-# Package plugin.video.archivemediadrive as a Kodi add-on ZIP.
+python plugins/kodi/package_release.py plugin.video.archivemediadrive.zip
 ```
 
-The implementation agent must complete the deterministic vendor script before a user-facing package is published.
+`build_vendor.py` vendors the pure-Python dependencies. `package_release.py` assembles the add-on directory into a release ZIP, excluding bytecode, caches, and compiled binaries.
 
 ### Jellyfin
 
@@ -95,7 +95,9 @@ make verify-tree
 make test
 ```
 
-The server adapters use .NET SDK 9.0. Jellyfin is pinned to Server/API 10.11.11; Emby compiles against `MediaBrowser.Server.Core` 4.9.1.90 and is tested against Server 4.9.3.0 plus 4.10.0.11-beta.
+The server adapters use .NET SDK 10.0. Jellyfin is pinned to Server/API 10.11.11; Emby compiles against `MediaBrowser.Server.Core` 4.9.1.90 and is tested against Server 4.9.3.0 plus 4.10.0.11-beta.
+
+Release ZIPs for Jellyfin and Emby include the plugin DLL, the shared Core DLL, and the pinned rclone runtime manifest. The Kodi release ZIP is produced by `package_release.py` and includes vendored pure-Python dependencies.
 
 ## Source types
 

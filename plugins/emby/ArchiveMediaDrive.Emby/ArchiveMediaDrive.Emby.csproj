@@ -10,4 +10,7 @@
     <PackageReference Include="MediaBrowser.Server.Core" Version="4.9.1.90" />
     <ProjectReference Include="../../../shared/dotnet/ArchiveMediaDrive.Core/ArchiveMediaDrive.Core.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="config.html" />
+  </ItemGroup>
 </Project>

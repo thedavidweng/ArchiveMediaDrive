@@ -18,7 +18,11 @@ public sealed class ArchiveMediaDriveChannel : IChannel
     public string DataVersion => "1";
     public string HomePageUrl => "https://archive.org";
     public ChannelParentalRating ParentalRating => ChannelParentalRating.GeneralAudience;
-    public bool IsEnabledFor(string userId) => true;
+    public bool IsEnabledFor(string userId)
+    {
+        var config = Plugin.Instance?.Configuration ?? new PluginConfiguration();
+        return config.ChannelEnabled;
+    }
     public InternalChannelFeatures GetChannelFeatures() => new();
 
     public Task<ChannelItemResult> GetChannelItems(InternalChannelItemQuery query, CancellationToken cancellationToken)

@@ -7,6 +7,8 @@ public sealed class ManagedLibraryService : IDisposable
 {
     private readonly RcloneMountSupervisor _supervisor;
     private readonly RcloneEnvironment _rcloneEnvironment;
+    private readonly IReadOnlyList<SourceDefinition> _sources;
+    private readonly IIaSourceResolver _resolver;
     private readonly string _libraryName;
     private bool _started;
     private bool _disposed;
@@ -17,16 +19,20 @@ public sealed class ManagedLibraryService : IDisposable
     public ManagedLibraryService(
         IMountProcessFactory factory,
         RcloneEnvironment rcloneEnvironment,
+        IReadOnlyList<SourceDefinition> sources,
+        IIaSourceResolver resolver,
         string mountPoint,
         string libraryName)
     {
         _rcloneEnvironment = rcloneEnvironment;
+        _sources = sources;
+        _resolver = resolver;
         _libraryName = libraryName;
         _supervisor = new RcloneMountSupervisor(
             factory,
             mountPoint,
             rcloneEnvironment.RuntimeManager.ExecutablePath,
-            RcloneEnvironment.RemoteName,
+            RcloneEnvironment.LibraryRemoteName,
             rcloneEnvironment.ConfigPath);
     }
 
@@ -37,6 +43,7 @@ public sealed class ManagedLibraryService : IDisposable
             return;
 
         await _rcloneEnvironment.EnsureReadyAsync(cancellationToken);
+        await _rcloneEnvironment.WriteCombineConfigAsync(_sources, _resolver, cancellationToken);
         await _supervisor.StartAsync(cancellationToken);
         _started = true;
     }

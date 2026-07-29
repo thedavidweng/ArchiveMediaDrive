@@ -77,7 +77,16 @@ public sealed class RcloneRuntimeManager : IRcloneRuntimeManager
     public async Task<string> EnsureInstalledAsync(CancellationToken cancellationToken)
     {
         if (File.Exists(ExecutablePath) && File.Exists(ReceiptPath))
-            return ExecutablePath;
+        {
+            try
+            {
+                await VerifyAsync(cancellationToken);
+                return ExecutablePath;
+            }
+            catch (RcloneRuntimeException)
+            {
+            }
+        }
 
         return await InstallCoreAsync(cancellationToken);
     }

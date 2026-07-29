@@ -1,3 +1,5 @@
+using System.Collections.Concurrent;
+
 namespace ArchiveMediaDrive.Core;
 
 public enum ChannelItemKind { Folder, Media, NonPlayable }
@@ -18,6 +20,8 @@ public sealed class ChannelPageResult
     public IReadOnlyList<ChannelItemDto> Items { get; init; } = Array.Empty<ChannelItemDto>();
 }
 
+internal sealed record SourceCacheEntry(IReadOnlyList<string> Identifiers, DateTimeOffset RefreshedAt);
+
 public sealed class ChannelMappingService
 {
     private static readonly HashSet<string> PlayableExtensions = new(StringComparer.OrdinalIgnoreCase)
@@ -35,7 +39,9 @@ public sealed class ChannelMappingService
     private readonly IIaSourceResolver _resolver;
     private readonly IRcloneGateway _gateway;
     private readonly IReadOnlyList<SourceDefinition> _sources;
-    private readonly Dictionary<string, (IReadOnlyList<string> identifiers, DateTimeOffset refreshedAt)> _sourceCache = new();
+    private readonly ConcurrentDictionary<string, SourceCacheEntry> _sourceCache = new();
+    private readonly ConcurrentDictionary<string, SemaphoreSlim> _sourceLocks = new();
+    private readonly ConcurrentDictionary<string, IReadOnlyList<string>> _fallbackIdentifiers = new();
 
     public ChannelMappingService(
         IIaSourceResolver resolver,
@@ -100,16 +106,42 @@ public sealed class ChannelMappingService
         if (source.Kind == SourceKind.Item)
             return new[] { SourceNormalizer.NormalizeValue(SourceKind.Item, source.Value) };
 
-        if (_sourceCache.TryGetValue(source.Id, out var cached))
-        {
-            var maxAge = TimeSpan.FromMinutes(source.RefreshMinutes > 0 ? source.RefreshMinutes : 360);
-            if (DateTimeOffset.UtcNow - cached.refreshedAt < maxAge)
-                return cached.identifiers;
-        }
+        var maxAge = TimeSpan.FromMinutes(source.RefreshMinutes > 0 ? source.RefreshMinutes : 360);
 
-        var identifiers = await _resolver.ResolveAsync(source, cancellationToken);
-        _sourceCache[source.Id] = (identifiers, DateTimeOffset.UtcNow);
-        return identifiers;
+        if (_sourceCache.TryGetValue(source.Id, out var cached) && DateTimeOffset.UtcNow - cached.RefreshedAt < maxAge)
+            return cached.Identifiers;
+
+        var gate = _sourceLocks.GetOrAdd(source.Id, _ => new SemaphoreSlim(1, 1));
+        await gate.WaitAsync(cancellationToken);
+        try
+        {
+            if (_sourceCache.TryGetValue(source.Id, out cached) && DateTimeOffset.UtcNow - cached.RefreshedAt < maxAge)
+                return cached.Identifiers;
+
+            try
+            {
+                var identifiers = await _resolver.ResolveAsync(source, cancellationToken);
+                _sourceCache[source.Id] = new SourceCacheEntry(identifiers, DateTimeOffset.UtcNow);
+                _fallbackIdentifiers[source.Id] = identifiers;
+                return identifiers;
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception)
+            {
+                if (_fallbackIdentifiers.TryGetValue(source.Id, out var fallback))
+                    return fallback;
+                if (_sourceCache.TryGetValue(source.Id, out var stale))
+                    return stale.Identifiers;
+                throw;
+            }
+        }
+        finally
+        {
+            gate.Release();
+        }
     }
 
     private async Task<ChannelPageResult> ListFilesInItemAsync(string itemPath, CancellationToken cancellationToken)
