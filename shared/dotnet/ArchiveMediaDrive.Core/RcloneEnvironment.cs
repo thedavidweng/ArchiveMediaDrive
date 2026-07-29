@@ -96,7 +96,7 @@ public sealed class RcloneEnvironment
         sb.AppendLine("type = internetarchive");
         sb.AppendLine();
 
-        var upstreams = new List<string>();
+        var upstreams = new List<(string SortKey, string Line)>();
         var seen = new HashSet<string>();
 
         foreach (var source in sources.Where(s => s.Enabled))
@@ -115,22 +115,28 @@ public sealed class RcloneEnvironment
                 continue;
             }
 
-            var dirName = SanitizeDirectoryName(source.Name);
+            var dirName = SanitizeDirectoryName($"{source.Name}--{source.Id}");
             foreach (var identifier in identifiers)
             {
                 var virtualPath = $"{dirName}/{identifier}";
                 if (!seen.Add(virtualPath))
                     continue;
-                upstreams.Add($"\"{virtualPath}={RemoteName}:{identifier}\"");
+                var sortKey = $"{source.Id}/{identifier}";
+                upstreams.Add((sortKey, $"\"{virtualPath}={RemoteName}:{identifier}\""));
             }
         }
 
         if (upstreams.Count == 0)
             return false;
 
+        var ordered = upstreams
+            .OrderBy(u => u.SortKey, StringComparer.Ordinal)
+            .Select(u => u.Line)
+            .ToList();
+
         sb.AppendLine($"[{LibraryRemoteName}]");
         sb.AppendLine("type = combine");
-        sb.AppendLine($"upstreams = {string.Join(" ", upstreams)}");
+        sb.AppendLine($"upstreams = {string.Join(" ", ordered)}");
 
         var candidate = ConfigPath + ".new";
         var previous = ConfigPath + ".previous";

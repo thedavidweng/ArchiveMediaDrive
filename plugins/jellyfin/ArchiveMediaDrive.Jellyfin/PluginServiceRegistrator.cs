@@ -35,6 +35,8 @@ public sealed class PluginServiceRegistrator : IPluginServiceRegistrator
         });
 
         serviceCollection.AddSingleton<IIaSourceResolver, IaSourceResolver>();
+        serviceCollection.AddSingleton<ISourceSnapshotStore>(_ =>
+            new FileSystemSourceSnapshotStore(Path.Combine(dataDir, "sources")));
 
         serviceCollection.AddSingleton<IRcloneGateway>(sp =>
         {

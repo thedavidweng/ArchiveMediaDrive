@@ -15,11 +15,13 @@ public sealed class ChannelService
 
     public ChannelService(
         IIaSourceResolver resolver,
+        ISourceSnapshotStore store,
         IRcloneGateway gateway,
         IReadOnlyList<SourceDefinition> sources,
         ILogger<ChannelService> logger)
     {
-        _mapping = new ChannelMappingService(resolver, gateway, sources);
+        var refresh = new SourceRefreshService(resolver, store);
+        _mapping = new ChannelMappingService(refresh, store, gateway, sources);
         _logger = logger;
     }
 

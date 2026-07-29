@@ -1,4 +1,6 @@
 using System.Collections.Concurrent;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace ArchiveMediaDrive.Core;
 
@@ -20,8 +22,6 @@ public sealed class ChannelPageResult
     public IReadOnlyList<ChannelItemDto> Items { get; init; } = Array.Empty<ChannelItemDto>();
 }
 
-internal sealed record SourceCacheEntry(IReadOnlyList<string> Identifiers, DateTimeOffset RefreshedAt);
-
 public sealed class ChannelMappingService
 {
     private static readonly HashSet<string> PlayableExtensions = new(StringComparer.OrdinalIgnoreCase)
@@ -36,19 +36,20 @@ public sealed class ChannelMappingService
         "MP3", "Flac", "Ogg Audio", "Vorbis", "WAV", "AAC",
     };
 
-    private readonly IIaSourceResolver _resolver;
+    private readonly SourceRefreshService _refresh;
+    private readonly ISourceSnapshotStore _store;
     private readonly IRcloneGateway _gateway;
     private readonly IReadOnlyList<SourceDefinition> _sources;
-    private readonly ConcurrentDictionary<string, SourceCacheEntry> _sourceCache = new();
     private readonly ConcurrentDictionary<string, SemaphoreSlim> _sourceLocks = new();
-    private readonly ConcurrentDictionary<string, IReadOnlyList<string>> _fallbackIdentifiers = new();
 
     public ChannelMappingService(
-        IIaSourceResolver resolver,
+        SourceRefreshService refresh,
+        ISourceSnapshotStore store,
         IRcloneGateway gateway,
         IReadOnlyList<SourceDefinition> sources)
     {
-        _resolver = resolver;
+        _refresh = refresh;
+        _store = store;
         _gateway = gateway;
         _sources = sources;
     }
@@ -108,35 +109,16 @@ public sealed class ChannelMappingService
 
         var maxAge = TimeSpan.FromMinutes(source.RefreshMinutes > 0 ? source.RefreshMinutes : 360);
 
-        if (_sourceCache.TryGetValue(source.Id, out var cached) && DateTimeOffset.UtcNow - cached.RefreshedAt < maxAge)
-            return cached.Identifiers;
-
         var gate = _sourceLocks.GetOrAdd(source.Id, _ => new SemaphoreSlim(1, 1));
         await gate.WaitAsync(cancellationToken);
         try
         {
-            if (_sourceCache.TryGetValue(source.Id, out cached) && DateTimeOffset.UtcNow - cached.RefreshedAt < maxAge)
-                return cached.Identifiers;
+            var snapshot = await _store.GetAsync(source.Id, cancellationToken);
+            if (snapshot is not null && DateTimeOffset.UtcNow - snapshot.RefreshedAt < maxAge)
+                return snapshot.Identifiers;
 
-            try
-            {
-                var identifiers = await _resolver.ResolveAsync(source, cancellationToken);
-                _sourceCache[source.Id] = new SourceCacheEntry(identifiers, DateTimeOffset.UtcNow);
-                _fallbackIdentifiers[source.Id] = identifiers;
-                return identifiers;
-            }
-            catch (OperationCanceledException)
-            {
-                throw;
-            }
-            catch (Exception)
-            {
-                if (_fallbackIdentifiers.TryGetValue(source.Id, out var fallback))
-                    return fallback;
-                if (_sourceCache.TryGetValue(source.Id, out var stale))
-                    return stale.Identifiers;
-                throw;
-            }
+            var refreshed = await _refresh.RefreshAsync(source, cancellationToken);
+            return refreshed.Identifiers;
         }
         finally
         {
@@ -170,6 +152,7 @@ public sealed class ChannelMappingService
                 items.Add(new ChannelItemDto
                 {
                     Name = node.Name,
+                    Id = ComputeStableId(identifier, node.Path),
                     Kind = ChannelItemKind.Media,
                     MediaType = GetMediaType(node.Name),
                     MediaUrl = url.ToString(),
@@ -182,7 +165,7 @@ public sealed class ChannelMappingService
                 items.Add(new ChannelItemDto
                 {
                     Name = node.Name,
-                    Id = $"item/{identifier}/{node.Path}",
+                    Id = ComputeStableId(identifier, node.Path),
                     Kind = ChannelItemKind.NonPlayable,
                     Size = node.Size,
                     Format = node.Format,
@@ -209,5 +192,13 @@ public sealed class ChannelMappingService
             ".mp3" or ".flac" or ".ogg" or ".oga" or ".wav" or ".m4a" or ".aac" or ".opus" or ".weba" => "Audio",
             _ => "Video",
         };
+    }
+
+    private static string ComputeStableId(string identifier, string relativePath)
+    {
+        var input = $"ia:{identifier}/{relativePath}";
+        using var sha = SHA256.Create();
+        var hash = sha.ComputeHash(Encoding.UTF8.GetBytes(input));
+        return BitConverter.ToString(hash).Replace("-", string.Empty).ToLowerInvariant();
     }
 }

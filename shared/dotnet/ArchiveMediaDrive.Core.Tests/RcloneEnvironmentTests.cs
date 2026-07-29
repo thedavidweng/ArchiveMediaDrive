@@ -73,8 +73,8 @@ public sealed class RcloneEnvironmentTests
             Assert.Contains("type = internetarchive", config);
             Assert.Contains("[archive-media-drive-library]", config);
             Assert.Contains("type = combine", config);
-            Assert.Contains("\"Prelinger/itemA=archive-media-drive-ia:itemA\"", config);
-            Assert.Contains("\"Prelinger/itemB=archive-media-drive-ia:itemB\"", config);
+            Assert.Contains("\"Prelinger--prelinger/itemA=archive-media-drive-ia:itemA\"", config);
+            Assert.Contains("\"Prelinger--prelinger/itemB=archive-media-drive-ia:itemB\"", config);
             Assert.DoesNotContain("Disabled", config);
         }
         finally
@@ -129,7 +129,7 @@ public sealed class RcloneEnvironmentTests
 
             Assert.True(ok);
             var config = File.ReadAllText(env.ConfigPath);
-            Assert.Contains("\"My-Special-Source/item1=archive-media-drive-ia:item1\"", config);
+            Assert.Contains("\"My-Special-Source--s1/item1=archive-media-drive-ia:item1\"", config);
         }
         finally
         {

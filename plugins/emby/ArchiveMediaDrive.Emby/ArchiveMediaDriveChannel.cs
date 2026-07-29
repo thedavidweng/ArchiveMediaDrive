@@ -32,8 +32,10 @@ public sealed class ArchiveMediaDriveChannel : IChannel
         _rcloneEnvironment = new RcloneEnvironment(runtimeManager, Path.Combine(dataDir, "rclone"));
 
         var resolver = new IaSourceResolver(SharedHttpClient);
+        var store = new FileSystemSourceSnapshotStore(Path.Combine(dataDir, "sources"));
+        var refresh = new SourceRefreshService(resolver, store);
         var gateway = new RcloneLoopbackGateway(_rcloneEnvironment);
-        _mapping = new ChannelMappingService(resolver, gateway, sources);
+        _mapping = new ChannelMappingService(refresh, store, gateway, sources);
     }
 
     public string Name => "ArchiveMediaDrive";
