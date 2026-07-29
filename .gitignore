@@ -9,3 +9,4 @@ docs/internal/
 .DS_Store
 bin/
 obj/
+plugins/kodi/plugin.video.archivemediadrive/resources/lib/vendor/

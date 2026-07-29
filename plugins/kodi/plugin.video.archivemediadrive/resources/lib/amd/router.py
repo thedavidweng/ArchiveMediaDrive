@@ -54,8 +54,8 @@ def run_with_handles(argv, *, ia_client=None) -> None:
     import xbmcgui
     import xbmcplugin
 
-    handle = int(argv[3]) if len(argv) > 3 else int(argv[1])
-    query_string = argv[1] if len(argv) > 1 and argv[1].startswith("?") else ""
+    handle = int(argv[1]) if len(argv) > 1 else 0
+    query_string = argv[2] if len(argv) > 2 else ""
     params = {k: v[0] for k, v in parse_qs(query_string.lstrip("?")).items()}
     addon = xbmcaddon.Addon()
     route = params.get("route", "root")
@@ -119,16 +119,26 @@ def _render_item(handle, params, xbmcgui, xbmcplugin, ia_client) -> None:
         xbmcplugin.endOfDirectory(handle, succeeded=False)
         return
 
+    current_path = params.get("path", "").rstrip("/")
     item = ia_client.get_item(identifier)
-    for f in item.files:
-        name = f.name
-        is_dir = (f.format or "").lower() in ("directory",) or name.endswith("/")
+
+    entries = _collect_entries(item.files, current_path)
+
+    if current_path:
+        parent = "/".join(current_path.split("/")[:-1])
+        parent_params = {"identifier": identifier}
+        if parent:
+            parent_params["path"] = parent
+        li = xbmcgui.ListItem(label="..")
+        xbmcplugin.addDirectoryItem(handle, build_plugin_url("item", parent_params), li, True)
+
+    for name, is_dir, full_path in entries:
         if is_dir:
-            url = build_plugin_url("item", {"identifier": identifier, "path": name})
+            url = build_plugin_url("item", {"identifier": identifier, "path": full_path})
             li = xbmcgui.ListItem(label=name)
             xbmcplugin.addDirectoryItem(handle, url, li, True)
         elif _is_playable(name):
-            url = build_plugin_url("play", {"identifier": identifier, "file": name})
+            url = build_plugin_url("play", {"identifier": identifier, "file": full_path})
             li = xbmcgui.ListItem(label=name)
             li.setProperty("isPlayable", "true")
             li.setPath(url)
@@ -137,6 +147,40 @@ def _render_item(handle, params, xbmcgui, xbmcplugin, ia_client) -> None:
             li = xbmcgui.ListItem(label=name)
             xbmcplugin.addDirectoryItem(handle, "", li, False)
     xbmcplugin.endOfDirectory(handle)
+
+
+def _collect_entries(files, current_path: str) -> list[tuple[str, bool, str]]:
+    prefix = f"{current_path}/" if current_path else ""
+    dirs: dict[str, str] = {}
+    file_entries: list[tuple[str, str]] = []
+
+    for f in files:
+        name = f.name
+        is_format_dir = (f.format or "").lower() in ("directory",) or name.endswith("/")
+        if is_format_dir:
+            rel = name.rstrip("/")
+        else:
+            rel = name
+
+        if prefix and not rel.startswith(prefix):
+            continue
+        remainder = rel[len(prefix):]
+        if not remainder:
+            continue
+
+        slash_idx = remainder.find("/")
+        if slash_idx >= 0:
+            dir_name = remainder[:slash_idx]
+            if dir_name not in dirs:
+                dirs[dir_name] = f"{prefix}{dir_name}"
+        elif is_format_dir:
+            dirs[remainder] = rel
+        else:
+            file_entries.append((remainder, rel))
+
+    result = [(name, True, path) for name, path in sorted(dirs.items())]
+    result += [(name, False, rel) for name, rel in sorted(file_entries)]
+    return result
 
 
 def _resolve_play(handle, params, xbmcgui, xbmcplugin, ia_client) -> None:

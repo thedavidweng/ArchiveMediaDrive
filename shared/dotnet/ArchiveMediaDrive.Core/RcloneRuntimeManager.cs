@@ -36,7 +36,8 @@ public sealed class RcloneReceipt
 {
     public string Version { get; set; } = string.Empty;
     public string Rid { get; set; } = string.Empty;
-    public string Sha256 { get; set; } = string.Empty;
+    public string ArchiveSha256 { get; set; } = string.Empty;
+    public string ExecutableSha256 { get; set; } = string.Empty;
     public DateTimeOffset InstalledAt { get; set; }
 }
 
@@ -131,11 +132,13 @@ public sealed class RcloneRuntimeManager : IRcloneRuntimeManager
             File.Move(sourceFileName: Path.Combine(tempExtract, "rclone"), destFileName: finalExe);
             SetExecutablePermissions(finalExe);
 
+            var exeHash = ComputeSha256(finalExe);
             var receipt = new RcloneReceipt
             {
                 Version = _manifest.Version,
                 Rid = _rid,
-                Sha256 = asset.Sha256,
+                ArchiveSha256 = asset.Sha256,
+                ExecutableSha256 = exeHash,
                 InstalledAt = DateTimeOffset.UtcNow,
             };
             File.WriteAllText(ReceiptPath, JsonSerializer.Serialize(receipt, ArchiveMediaDriveJson.Options));
@@ -161,6 +164,21 @@ public sealed class RcloneRuntimeManager : IRcloneRuntimeManager
     {
         if (!File.Exists(ExecutablePath) || !File.Exists(ReceiptPath))
             throw new RcloneRuntimeException("rclone runtime is not installed");
+
+        var receipt = JsonSerializer.Deserialize<RcloneReceipt>(File.ReadAllText(ReceiptPath), ArchiveMediaDriveJson.Options);
+        if (receipt is null)
+            throw new RcloneRuntimeException("rclone receipt is invalid");
+
+        if (!string.Equals(receipt.Version, _manifest.Version, StringComparison.Ordinal))
+            throw new RcloneRuntimeException($"rclone version mismatch: receipt has {receipt.Version}, manifest has {_manifest.Version}");
+
+        if (!string.Equals(receipt.Rid, _rid, StringComparison.Ordinal))
+            throw new RcloneRuntimeException($"rclone RID mismatch: receipt has {receipt.Rid}, expected {_rid}");
+
+        var actualExeHash = ComputeSha256(ExecutablePath);
+        if (!string.Equals(actualExeHash, receipt.ExecutableSha256, StringComparison.OrdinalIgnoreCase))
+            throw new RcloneRuntimeException($"rclone executable checksum mismatch: receipt has {receipt.ExecutableSha256}, got {actualExeHash}");
+
         return Task.CompletedTask;
     }
 

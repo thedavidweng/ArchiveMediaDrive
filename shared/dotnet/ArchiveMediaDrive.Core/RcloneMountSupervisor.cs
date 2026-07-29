@@ -27,6 +27,7 @@ public sealed class RcloneMountSupervisor : IDisposable
     private readonly string _rcloneBinary;
     private readonly string _remoteName;
     private readonly string _configPath;
+    private readonly CancellationTokenSource _stopCts = new();
     private IMountProcess? _process;
     private int _restartCount;
     private bool _disposed;
@@ -74,6 +75,7 @@ public sealed class RcloneMountSupervisor : IDisposable
     public Task StopAsync(CancellationToken cancellationToken)
     {
         ThrowIfDisposed();
+        _stopCts.Cancel();
         if (_process is null)
             return Task.CompletedTask;
 
@@ -115,20 +117,29 @@ public sealed class RcloneMountSupervisor : IDisposable
 
     private void OnProcessExited(object? sender, EventArgs e)
     {
-        if (_disposed || _process is null) return;
+        if (_disposed || _stopCts.IsCancellationRequested || _process is null)
+            return;
 
         _restartCount++;
         if (_restartCount > MaxRestarts)
             return;
 
-        Task.Run(async () =>
+        _ = Task.Run(async () =>
         {
             try
             {
-                await Task.Delay(RestartDelay);
+                await Task.Delay(RestartDelay, _stopCts.Token);
+                if (_disposed || _stopCts.IsCancellationRequested)
+                    return;
                 StartProcess();
             }
-            catch { }
+            catch (OperationCanceledException)
+            {
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"rclone mount restart failed: {ex.Message}");
+            }
         });
     }
 
@@ -141,7 +152,9 @@ public sealed class RcloneMountSupervisor : IDisposable
     {
         if (_disposed) return;
         _disposed = true;
+        _stopCts.Cancel();
         _process?.Stop();
         _process = null;
+        _stopCts.Dispose();
     }
 }

@@ -12,13 +12,28 @@ namespace ArchiveMediaDrive.Emby;
 public sealed class ArchiveMediaDriveChannel : IChannel
 {
     private readonly ChannelMappingService _mapping;
+    private readonly RcloneEnvironment _rcloneEnvironment;
 
     public ArchiveMediaDriveChannel()
     {
-        var config = Plugin.Instance?.Configuration ?? new PluginConfiguration();
+        var plugin = Plugin.Instance;
+        var config = plugin?.Configuration ?? new PluginConfiguration();
         var sources = LoadSources(config.SourcesJson);
+
+        var dataDir = GetDataDir(plugin);
+        Directory.CreateDirectory(dataDir);
+
+        var manifestPath = Path.Combine(dataDir, "runtime", "rclone", "manifest.json");
+        var manifest = File.Exists(manifestPath)
+            ? RcloneManifestLoader.Load(manifestPath)
+            : RcloneManifestLoader.Load(Path.Combine("runtime", "rclone", "manifest.json"));
+        var downloader = new HttpAssetDownloader(new HttpClient(), manifest.ReleaseBaseUrl);
+        var rid = RcloneEnvironment.DetectRid();
+        var runtimeManager = new RcloneRuntimeManager(dataDir, manifest, downloader, rid);
+        _rcloneEnvironment = new RcloneEnvironment(runtimeManager, Path.Combine(dataDir, "rclone"));
+
         var resolver = new IaSourceResolver(new HttpClient());
-        var gateway = CreateGateway();
+        var gateway = new RcloneLoopbackGateway(runtimeManager, _rcloneEnvironment.ConfigPath);
         _mapping = new ChannelMappingService(resolver, gateway, sources);
     }
 
@@ -28,6 +43,7 @@ public sealed class ArchiveMediaDriveChannel : IChannel
 
     public async Task<ChannelItemResult> GetChannelItems(InternalChannelItemQuery query, CancellationToken cancellationToken)
     {
+        await _rcloneEnvironment.EnsureReadyAsync(cancellationToken);
         var page = await _mapping.GetItemsAsync(query.FolderId ?? "", cancellationToken);
         var items = page.Items.Select(MapToChannelItemInfo).ToList();
         return new ChannelItemResult { Items = items, TotalRecordCount = items.Count };
@@ -37,6 +53,13 @@ public sealed class ArchiveMediaDriveChannel : IChannel
         => Task.FromResult(new DynamicImageResponse());
 
     public IEnumerable<ImageType> GetSupportedChannelImages() => Array.Empty<ImageType>();
+
+    private static string GetDataDir(Plugin? plugin)
+    {
+        if (plugin is null)
+            return AppContext.BaseDirectory;
+        return Path.Combine(plugin.ApplicationPaths.ProgramDataPath, "plugins", "ArchiveMediaDrive");
+    }
 
     private static IReadOnlyList<SourceDefinition> LoadSources(string sourcesJson)
     {
@@ -68,28 +91,6 @@ public sealed class ArchiveMediaDriveChannel : IChannel
         }
     }
 
-    private static IRcloneGateway CreateGateway()
-    {
-        var plugin = Plugin.Instance;
-        if (plugin is null)
-            return new NullRcloneGateway();
-
-        var pluginDir = GetPluginDataPath(plugin);
-        var rcloneBinary = Path.Combine(pluginDir, "rclone", "rclone");
-        var configPath = Path.Combine(pluginDir, "rclone", "rclone.conf");
-        var process = new RcloneProcess(rcloneBinary, configPath, "archive-media-drive-ia");
-        return new RcloneLoopbackGateway(process);
-    }
-
-    private static string GetPluginDataPath(Plugin plugin)
-    {
-        var path = plugin.GetType().GetProperty("DataPath")?.GetValue(plugin) as string;
-        if (!string.IsNullOrEmpty(path)) return path!;
-        path = plugin.GetType().GetProperty("DataFolderPath")?.GetValue(plugin) as string;
-        if (!string.IsNullOrEmpty(path)) return path!;
-        return AppContext.BaseDirectory;
-    }
-
     private static ChannelItemInfo MapToChannelItemInfo(ChannelItemDto dto) => dto.Kind switch
     {
         ChannelItemKind.Folder => new ChannelItemInfo
@@ -117,18 +118,7 @@ public sealed class ArchiveMediaDriveChannel : IChannel
         {
             Name = dto.Name,
             Type = ChannelItemType.Folder,
+            Id = dto.Id ?? "",
         },
     };
-
-    private sealed class NullRcloneGateway : IRcloneGateway
-    {
-        public Task<IReadOnlyList<RawNode>> ListAsync(string identifier, string relativePath, CancellationToken cancellationToken)
-            => Task.FromResult<IReadOnlyList<RawNode>>(Array.Empty<RawNode>());
-
-        public Task<Uri> GetPublicLinkAsync(string identifier, string relativePath, CancellationToken cancellationToken)
-            => Task.FromResult(new Uri($"https://archive.org/download/{identifier}/{relativePath}"));
-
-        public Task<RcloneProbe> ProbeAsync(CancellationToken cancellationToken)
-            => Task.FromResult(new RcloneProbe());
-    }
 }

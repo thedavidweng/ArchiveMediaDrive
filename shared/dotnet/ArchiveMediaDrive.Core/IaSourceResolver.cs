@@ -75,23 +75,23 @@ public sealed class IaSourceResolver : IIaSourceResolver
 
     private async Task<JsonDocument> SendWithRetryAsync(string uri, CancellationToken cancellationToken)
     {
-        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        linkedCts.CancelAfter(RequestTimeout);
-
         for (var attempt = 0; ; attempt++)
         {
+            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            timeoutCts.CancelAfter(RequestTimeout);
+
             using var request = new HttpRequestMessage(HttpMethod.Get, uri);
             request.Headers.UserAgent.ParseAdd(_userAgent);
 
             HttpResponseMessage response;
             try
             {
-                response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, linkedCts.Token);
+                response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, timeoutCts.Token);
             }
             catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
             {
                 if (attempt >= MaxRetries) throw;
-                await DelayAsync(RetryDelay, linkedCts.Token);
+                await Task.Delay(RetryDelay + TimeSpan.FromMilliseconds(Jitter()), cancellationToken);
                 continue;
             }
 
@@ -101,7 +101,7 @@ public sealed class IaSourceResolver : IIaSourceResolver
                 if (response.IsSuccessStatusCode)
                 {
                     using var stream = await response.Content.ReadAsStreamAsync();
-                    return await JsonDocument.ParseAsync(stream, cancellationToken: linkedCts.Token);
+                    return await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
                 }
 
                 if (!IsTransient(response.StatusCode) || attempt >= MaxRetries)
@@ -119,8 +119,13 @@ public sealed class IaSourceResolver : IIaSourceResolver
                 response.Dispose();
             }
 
-            await DelayAsync(delay, linkedCts.Token);
+            await Task.Delay(delay + TimeSpan.FromMilliseconds(Jitter()), cancellationToken);
         }
+    }
+
+    private static int Jitter()
+    {
+        lock (JitterRandom) return JitterRandom.Next(0, 250);
     }
 
     private static bool IsTransient(HttpStatusCode statusCode)
@@ -130,18 +135,4 @@ public sealed class IaSourceResolver : IIaSourceResolver
             || statusCode == HttpStatusCode.InternalServerError;
 
     private static readonly Random JitterRandom = new();
-
-    private static async Task DelayAsync(TimeSpan baseDelay, CancellationToken cancellationToken)
-    {
-        int jitter;
-        lock (JitterRandom) jitter = JitterRandom.Next(0, 250);
-        var total = baseDelay + TimeSpan.FromMilliseconds(jitter);
-        try
-        {
-            await Task.Delay(total, cancellationToken);
-        }
-        catch (OperationCanceledException)
-        {
-        }
-    }
 }

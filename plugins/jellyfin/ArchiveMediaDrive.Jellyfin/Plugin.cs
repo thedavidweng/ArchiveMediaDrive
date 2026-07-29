@@ -10,6 +10,7 @@ public sealed class Plugin : BasePlugin<PluginConfiguration>
         : base(applicationPaths, xmlSerializer) => Instance = this;
 
     public static Plugin? Instance { get; private set; }
+    public new IApplicationPaths ApplicationPaths => base.ApplicationPaths;
     public override Guid Id => Guid.Parse("14c1491f-2509-4ea6-9226-613ca9971ed8");
     public override string Name => "ArchiveMediaDrive";
     public override string Description => "Use Internet Archive as a Jellyfin media source.";

@@ -25,7 +25,7 @@ class RouterTests(unittest.TestCase):
             params.update(extra_params)
         query = "&".join(f"{k}={v}" for k, v in params.items())
         handle = 0
-        argv = ["plugin://plugin.video.archivemediadrive/", f"?{query}", "", handle]
+        argv = ["plugin://plugin.video.archivemediadrive/", str(handle), f"?{query}"]
 
         addon = MagicMock()
         addon.getSettingString.return_value = json.dumps(sources or [])
@@ -108,6 +108,43 @@ class RouterTests(unittest.TestCase):
         item = call.args[2]
         item.setPath.assert_called_with("https://archive.org/download/TripDown1905/TripDown1905.mp4")
 
+    def test_nested_paths_build_directory_tree_at_root(self) -> None:
+        ia_items = {
+            "item:NestedItem": [
+                {"name": "video/main.mkv", "size": 5000, "format": "Matroska"},
+                {"name": "video/sub/trailer.mp4", "size": 1000, "format": "MPEG4"},
+                {"name": "thumbs/image.jpg", "size": 200, "format": "JPEG"},
+                {"name": "readme.txt", "size": 10, "format": "Text"},
+            ]
+        }
+        self._run("item", extra_params={"identifier": "NestedItem"}, ia_items=ia_items)
+
+        calls = self._xbmcplugin.addDirectoryItem.call_args_list
+        labels = [c.args[2].label for c in calls]
+        self.assertIn("video", labels)
+        self.assertIn("thumbs", labels)
+        self.assertIn("readme.txt", labels)
+        self.assertNotIn("main.mkv", labels)
+        self.assertNotIn("image.jpg", labels)
+
+    def test_nested_paths_drills_into_subdirectory(self) -> None:
+        ia_items = {
+            "item:NestedItem": [
+                {"name": "video/main.mkv", "size": 5000, "format": "Matroska"},
+                {"name": "video/sub/trailer.mp4", "size": 1000, "format": "MPEG4"},
+                {"name": "thumbs/image.jpg", "size": 200, "format": "JPEG"},
+            ]
+        }
+        self._run("item", extra_params={"identifier": "NestedItem", "path": "video"}, ia_items=ia_items)
+
+        calls = self._xbmcplugin.addDirectoryItem.call_args_list
+        labels = [c.args[2].label for c in calls]
+        self.assertIn("..", labels)
+        self.assertIn("main.mkv", labels)
+        self.assertIn("sub", labels)
+        self.assertNotIn("thumbs", labels)
+        self.assertNotIn("image.jpg", labels)
+
 
 class BuildPluginUrlTests(unittest.TestCase):
     def test_builds_url_with_route_and_params(self) -> None:
@@ -131,7 +168,14 @@ def _make_ia_client(items: dict):
             files = items.get(key, [])
             item = MagicMock()
             item.identifier = identifier
-            item.files = [MagicMock(name=f["name"], size=f.get("size", 0), format=f.get("format", "")) for f in files]
+            file_mocks = []
+            for f in files:
+                m = MagicMock()
+                m.name = f["name"]
+                m.size = f.get("size", 0)
+                m.format = f.get("format", "")
+                file_mocks.append(m)
+            item.files = file_mocks
             return item
 
     return FakeIaClient()

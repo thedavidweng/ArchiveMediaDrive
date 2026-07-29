@@ -129,12 +129,13 @@ public sealed class RcloneLoopbackGateway : IRcloneGateway
 
     public RcloneLoopbackGateway(IRcloneProcess process) => _process = process;
 
-    public RcloneLoopbackGateway(IRcloneRuntimeManager runtime) : this(runtime, null, null)
+    public RcloneLoopbackGateway(IRcloneRuntimeManager runtime, string configPath)
+        : this(new RcloneProcess(runtime.ExecutablePath, configPath, RemotePrefix))
     {
     }
 
-    public RcloneLoopbackGateway(IRcloneRuntimeManager runtime, string? user, string? password)
-        : this(new RcloneProcess(runtime.ExecutablePath, "", RemotePrefix, user, password))
+    public RcloneLoopbackGateway(IRcloneRuntimeManager runtime, string configPath, string? user, string? password)
+        : this(new RcloneProcess(runtime.ExecutablePath, configPath, RemotePrefix, user, password))
     {
     }
 

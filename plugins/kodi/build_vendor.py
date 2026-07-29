@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Deterministically vendor pure-Python dependencies for the Kodi release ZIP.
 
-Pins hashes, installs into a temporary directory, removes metadata and
+Pins hashes, downloads source archives, verifies SHA-256, installs from the
+verified local archives into a temporary directory, removes metadata and
 bytecode, rejects compiled extensions, and copies source files into
 resources/lib/vendor.
 """
@@ -19,8 +20,32 @@ _VENDOR_DIR = _PLUGIN_ROOT / "resources" / "lib" / "vendor"
 
 _REQUIREMENTS = [
     ("internetarchive", "5.10.1",
-     "https://files.pythonhosted.org/packages/source/i/internetarchive/internetarchive-5.10.1.tar.gz",
-     "sha256"),
+     "https://files.pythonhosted.org/packages/b0/95/5d830762f4519bb932401953d4735697a196a48159d2be30c88343023244/internetarchive-5.10.1.tar.gz",
+     "7098b34d80ab7cd305d36999185415463207aa15b22ad8686bac06ed39037cae"),
+    ("requests", "2.34.2",
+     "https://files.pythonhosted.org/packages/ac/c3/e2a2b89f2d3e2179abd6d00ebd70bff6273f37fb3e0cc209f48b39d00cbf/requests-2.34.2.tar.gz",
+     "f288924cae4e29463698d6d60bc6a4da69c89185ad1e0bcc4104f584e960b9ed"),
+    ("charset-normalizer", "3.4.9",
+     "https://files.pythonhosted.org/packages/bd/2a/23f34ec9d04624958e137efdc394888716353190e75f25dd22c7a2c7a8aa/charset_normalizer-3.4.9.tar.gz",
+     "673611bbd43f0810bec0b0f028ddeaaa501190339cac411f347ac76917c3ae7b"),
+    ("idna", "3.18",
+     "https://files.pythonhosted.org/packages/cd/63/9496c57188a2ee585e0f1db071d75089a11e98aa86eb99d9d7618fc1edce/idna-3.18.tar.gz",
+     "ffb385a7e039654cef1ab9ef32c6fafe283c0c0467bba1d9029738ce4a14a848"),
+    ("urllib3", "2.7.0",
+     "https://files.pythonhosted.org/packages/53/0c/06f8b233b8fd13b9e5ee11424ef85419ba0d8ba0b3138bf360be2ff56953/urllib3-2.7.0.tar.gz",
+     "231e0ec3b63ceb14667c67be60f2f2c40a518cb38b03af60abc813da26505f4c"),
+    ("certifi", "2026.7.22",
+     "https://files.pythonhosted.org/packages/a3/c2/24167ea9858356b47a87a50d39908bfdb72ceeefe0041586e704e5376b3a/certifi-2026.7.22.tar.gz",
+     "741e2c3b351ddf169a738da9f2c048608ff7f2c5cc02f1ebc6b118bb090d5d55"),
+    ("jsonpatch", "1.33",
+     "https://files.pythonhosted.org/packages/42/78/18813351fe5d63acad16aec57f94ec2b70a09e53ca98145589e185423873/jsonpatch-1.33.tar.gz",
+     "9fcd4009c41e6d12348b4a0ff2563ba56a2923a7dfee731d004e212e1ee5030c"),
+    ("jsonpointer", "3.1.1",
+     "https://files.pythonhosted.org/packages/18/c7/af399a2e7a67fd18d63c40c5e62d3af4e67b836a2107468b6a5ea24c4304/jsonpointer-3.1.1.tar.gz",
+     "0b801c7db33a904024f6004d526dcc53bbb8a4a0f4e32bfd10beadf60adf1900"),
+    ("tqdm", "4.70.0",
+     "https://files.pythonhosted.org/packages/21/3b/6c24bec5be5e743ffd99576daa5cc077722fc7d5bbc00bd133fa0c698dc6/tqdm-4.70.0.tar.gz",
+     "55b0b0dbd97462d06ebee91e4dac24ed4d4702be82b24f07e6c1d27e08cea220"),
 ]
 
 _COMPILED_EXTENSIONS = {".so", ".pyd", ".dll", ".dylib", ".pyc", ".pyo"}
@@ -53,29 +78,34 @@ def build() -> None:
 
     with tempfile.TemporaryDirectory(prefix="amd-vendor-") as tmpdir:
         tmp = Path(tmpdir)
+        archives: list[Path] = []
+
         for name, version, url, expected_hash in _REQUIREMENTS:
             archive = tmp / f"{name}-{version}.tar.gz"
+            print(f"downloading {name}=={version}...")
             _download(url, archive)
-            if expected_hash != "sha256":
-                raise SystemExit(f"unsupported hash type for {name}")
-            print(f"downloaded {name}=={version}")
+            _verify_sha256(archive, expected_hash)
+            archives.append(archive)
 
-            install_dir = tmp / "install" / name
-            install_dir.mkdir(parents=True, exist_ok=True)
+        install_dir = tmp / "install"
+        install_dir.mkdir(parents=True, exist_ok=True)
+
+        for archive in archives:
+            print(f"installing {archive.name} from verified local archive...")
             subprocess.run(
                 [sys.executable, "-m", "pip", "install",
-                 "--no-deps", "--no-binary=:all:",
+                 "--no-deps",
                  "--target", str(install_dir),
-                 f"{name}=={version}"],
+                 str(archive)],
                 check=True,
             )
 
-            for src in install_dir.rglob("*"):
-                if src.is_file() and _is_pure_python(src) and not _should_strip(str(src.relative_to(install_dir))):
-                    rel = src.relative_to(install_dir)
-                    dest = _VENDOR_DIR / rel
-                    dest.parent.mkdir(parents=True, exist_ok=True)
-                    shutil.copy2(src, dest)
+        for src in install_dir.rglob("*"):
+            if src.is_file() and _is_pure_python(src) and not _should_strip(str(src.relative_to(install_dir))):
+                rel = src.relative_to(install_dir)
+                dest = _VENDOR_DIR / rel
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(src, dest)
 
     init_file = _VENDOR_DIR / "__init__.py"
     if not init_file.exists():

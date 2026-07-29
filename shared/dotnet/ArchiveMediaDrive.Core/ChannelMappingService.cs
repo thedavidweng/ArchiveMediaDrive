@@ -35,6 +35,7 @@ public sealed class ChannelMappingService
     private readonly IIaSourceResolver _resolver;
     private readonly IRcloneGateway _gateway;
     private readonly IReadOnlyList<SourceDefinition> _sources;
+    private readonly Dictionary<string, (IReadOnlyList<string> identifiers, DateTimeOffset refreshedAt)> _sourceCache = new();
 
     public ChannelMappingService(
         IIaSourceResolver resolver,
@@ -81,7 +82,7 @@ public sealed class ChannelMappingService
         if (source is null)
             return new ChannelPageResult();
 
-        var identifiers = await _resolver.ResolveAsync(source, cancellationToken);
+        var identifiers = await GetIdentifiersAsync(source, cancellationToken);
         var items = identifiers
             .Select(id => new ChannelItemDto
             {
@@ -92,6 +93,23 @@ public sealed class ChannelMappingService
             .ToList();
 
         return new ChannelPageResult { Items = items };
+    }
+
+    private async Task<IReadOnlyList<string>> GetIdentifiersAsync(SourceDefinition source, CancellationToken cancellationToken)
+    {
+        if (source.Kind == SourceKind.Item)
+            return new[] { SourceNormalizer.NormalizeValue(SourceKind.Item, source.Value) };
+
+        if (_sourceCache.TryGetValue(source.Id, out var cached))
+        {
+            var maxAge = TimeSpan.FromMinutes(source.RefreshMinutes > 0 ? source.RefreshMinutes : 360);
+            if (DateTimeOffset.UtcNow - cached.refreshedAt < maxAge)
+                return cached.identifiers;
+        }
+
+        var identifiers = await _resolver.ResolveAsync(source, cancellationToken);
+        _sourceCache[source.Id] = (identifiers, DateTimeOffset.UtcNow);
+        return identifiers;
     }
 
     private async Task<ChannelPageResult> ListFilesInItemAsync(string itemPath, CancellationToken cancellationToken)
@@ -132,6 +150,7 @@ public sealed class ChannelMappingService
                 items.Add(new ChannelItemDto
                 {
                     Name = node.Name,
+                    Id = $"item/{identifier}/{node.Path}",
                     Kind = ChannelItemKind.NonPlayable,
                     Size = node.Size,
                     Format = node.Format,

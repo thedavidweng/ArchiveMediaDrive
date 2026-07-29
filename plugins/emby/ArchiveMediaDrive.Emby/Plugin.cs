@@ -10,6 +10,7 @@ public sealed class Plugin : BasePlugin<PluginConfiguration>
         : base(applicationPaths, xmlSerializer) => Instance = this;
 
     public static Plugin? Instance { get; private set; }
+    public new IApplicationPaths ApplicationPaths => base.ApplicationPaths;
     public override Guid Id => Guid.Parse("22b4b6cb-f3c0-44bd-a0ce-8c10e5263402");
     public override string Name => "ArchiveMediaDrive";
     public override string Description => "Use Internet Archive as an Emby media source.";

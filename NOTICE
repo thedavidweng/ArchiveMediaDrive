@@ -1,6 +1,73 @@
-ArchiveMediaDrive reuses external upstream projects.
+ArchiveMediaDrive
+Copyright (C) 2025 ArchiveMediaDrive contributors
 
-- internetarchive / ia: GNU Affero General Public License v3
-- rclone: MIT License
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as published
+by the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
 
-Kodi release packages vendor source-form Python dependencies. Jellyfin and Emby plugins download a pinned official rclone release after validating the committed checksum manifest. Upstream licenses and notices remain available from their projects and release artifacts.
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+== Third-party dependencies ==
+
+internetarchive (Python)
+  License: GNU Affero General Public License v3
+  https://github.com/jjjake/internetarchive
+
+requests (Python)
+  License: Apache License 2.0
+  https://github.com/psf/requests
+
+charset-normalizer (Python)
+  License: MIT License
+  https://github.com/Ousret/charset_normalizer
+
+idna (Python)
+  License: BSD-3-Clause License
+  https://github.com/kjd/idna
+
+urllib3 (Python)
+  License: MIT License
+  https://github.com/urllib3/urllib3
+
+certifi (Python)
+  License: MPL-2.0 License
+  https://github.com/certifi/python-certifi
+
+jsonpatch (Python)
+  License: BSD-3-Clause License
+  https://github.com/stefankoegl/python-json-patch
+
+jsonpointer (Python)
+  License: BSD-3-Clause License
+  https://github.com/stefankoegl/python-json-pointer
+
+tqdm (Python)
+  License: MPL-2.0 License
+  https://github.com/tqdm/tqdm
+
+rclone (Go)
+  License: MIT License
+  https://github.com/rclone/rclone
+
+Jellyfin.Controller / Jellyfin.Model (C#)
+  License: GNU General Public License v2
+  https://github.com/jellyfin/jellyfin
+
+MediaBrowser.Server.Core (Emby, C#)
+  License: Proprietary (Emby LLC)
+  Used under Emby plugin development terms.
+
+Kodi Python APIs
+  License: GNU General Public License v2
+  https://github.com/xbmc/xbmc
+
+Kodi release packages vendor source-form Python dependencies.
+Jellyfin and Emby plugins download a pinned official rclone release
+after validating the committed checksum manifest.

@@ -65,6 +65,8 @@ public sealed class ChannelService
         {
             Name = dto.Name,
             Type = ChannelItemType.Folder,
+            FolderType = ChannelFolderType.Container,
+            Id = dto.Id,
         },
     };
 }
