@@ -9,4 +9,8 @@
   <ItemGroup>
     <PackageReference Include="System.Text.Json" />
   </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\..\runtime\rclone\manifest.json" LogicalName="ArchiveMediaDrive.Core.runtime.rclone.manifest.json" />
+    <EmbeddedResource Include="..\..\..\LICENSE" LogicalName="ArchiveMediaDrive.Core.LICENSE" />
+  </ItemGroup>
 </Project>

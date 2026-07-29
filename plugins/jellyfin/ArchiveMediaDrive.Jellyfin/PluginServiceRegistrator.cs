@@ -21,10 +21,7 @@ public sealed class PluginServiceRegistrator : IPluginServiceRegistrator
         serviceCollection.AddSingleton<IRcloneRuntimeManager>(sp =>
         {
             var http = sp.GetRequiredService<HttpClient>();
-            var manifestPath = Path.Combine(dataDir, "runtime", "rclone", "manifest.json");
-            var manifest = File.Exists(manifestPath)
-                ? RcloneManifestLoader.Load(manifestPath)
-                : RcloneManifestLoader.Load(Path.Combine("runtime", "rclone", "manifest.json"));
+            var manifest = RcloneManifestLoader.LoadFromPluginData(dataDir);
             var downloader = new HttpAssetDownloader(http, manifest.ReleaseBaseUrl);
             var rid = RcloneEnvironment.DetectRid();
             return new RcloneRuntimeManager(dataDir, manifest, downloader, rid);

@@ -1,6 +1,8 @@
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO.Compression;
+using System.Net;
+using System.Net.Http;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text.Json;
@@ -21,6 +23,26 @@ public sealed class RcloneManifest
 
     [JsonPropertyName("assets")]
     public Dictionary<string, RcloneAsset> Assets { get; set; } = new();
+
+    public void Validate()
+    {
+        if (Schema <= 0)
+            throw new RcloneRuntimeException("rclone manifest schema must be a positive integer");
+        if (string.IsNullOrWhiteSpace(Version))
+            throw new RcloneRuntimeException("rclone manifest version is empty");
+        if (string.IsNullOrWhiteSpace(ReleaseBaseUrl))
+            throw new RcloneRuntimeException("rclone manifest release base URL is empty");
+        if (!Uri.TryCreate(ReleaseBaseUrl, UriKind.Absolute, out var uri) || !uri.Scheme.Equals("https", StringComparison.Ordinal))
+            throw new RcloneRuntimeException($"rclone manifest release base URL must be an absolute HTTPS URL: {ReleaseBaseUrl}");
+        if (Assets is null || Assets.Count == 0)
+            throw new RcloneRuntimeException("rclone manifest declares no assets");
+        foreach (var asset in Assets)
+        {
+            if (string.IsNullOrWhiteSpace(asset.Key))
+                throw new RcloneRuntimeException("rclone manifest contains an asset with an empty RID");
+            asset.Value.Validate();
+        }
+    }
 }
 
 public sealed class RcloneAsset
@@ -30,6 +52,20 @@ public sealed class RcloneAsset
 
     [JsonPropertyName("sha256")]
     public string Sha256 { get; set; } = string.Empty;
+
+    public void Validate()
+    {
+        if (string.IsNullOrWhiteSpace(Filename))
+            throw new RcloneRuntimeException("rclone asset filename is empty");
+        if (string.IsNullOrWhiteSpace(Sha256) || Sha256.Length != 64)
+            throw new RcloneRuntimeException($"rclone asset SHA-256 for {Filename} is not a 64-character hex string");
+        for (var i = 0; i < Sha256.Length; i++)
+        {
+            var c = Sha256[i];
+            if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')))
+                throw new RcloneRuntimeException($"rclone asset SHA-256 for {Filename} contains non-hex characters");
+        }
+    }
 }
 
 public sealed class RcloneReceipt
@@ -44,6 +80,28 @@ public sealed class RcloneReceipt
 public interface IAssetDownloader
 {
     Task<Stream> OpenAsync(string filename, CancellationToken cancellationToken);
+}
+
+public sealed class HttpAssetDownloader : IAssetDownloader
+{
+    private readonly HttpClient _httpClient;
+    private readonly string _baseUrl;
+
+    public HttpAssetDownloader(HttpClient httpClient, string baseUrl)
+    {
+        _httpClient = httpClient;
+        _baseUrl = baseUrl.TrimEnd('/');
+    }
+
+    public async Task<Stream> OpenAsync(string filename, CancellationToken cancellationToken)
+    {
+        var uri = $"{_baseUrl}/{filename}";
+        using var request = new HttpRequestMessage(HttpMethod.Get, uri);
+        var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+        if (!response.IsSuccessStatusCode)
+            throw new RcloneRuntimeException($"download failed for {filename}: {(int)response.StatusCode} {response.StatusCode}");
+        return await response.Content.ReadAsStreamAsync();
+    }
 }
 
 public sealed class RcloneRuntimeException : Exception

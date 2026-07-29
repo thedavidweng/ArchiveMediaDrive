@@ -25,10 +25,7 @@ public sealed class ArchiveMediaDriveChannel : IChannel
         var dataDir = GetDataDir(plugin);
         Directory.CreateDirectory(dataDir);
 
-        var manifestPath = Path.Combine(dataDir, "runtime", "rclone", "manifest.json");
-        var manifest = File.Exists(manifestPath)
-            ? RcloneManifestLoader.Load(manifestPath)
-            : RcloneManifestLoader.Load(Path.Combine("runtime", "rclone", "manifest.json"));
+        var manifest = RcloneManifestLoader.LoadFromPluginData(dataDir);
         var downloader = new HttpAssetDownloader(SharedHttpClient, manifest.ReleaseBaseUrl);
         var rid = RcloneEnvironment.DetectRid();
         var runtimeManager = new RcloneRuntimeManager(dataDir, manifest, downloader, rid);
