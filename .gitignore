@@ -4,6 +4,6 @@ __pycache__/
 *.egg-info/
 build/
 dist/
-.amd/
 config.toml
+docs/internal/
 .DS_Store
