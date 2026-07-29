@@ -244,14 +244,14 @@ public sealed class RcloneLoopbackGateway : IRcloneGateway
     {
         if (string.IsNullOrWhiteSpace(identifier))
             throw new RcloneGatewayException("identifier must not be empty");
-        if (identifier.Contains("..", StringComparison.Ordinal))
+        if (identifier.IndexOf("..", StringComparison.Ordinal) >= 0)
             throw new RcloneGatewayException($"identifier contains path traversal: {identifier}");
     }
 
     private static void ValidateRelativePath(string relativePath)
     {
         if (string.IsNullOrEmpty(relativePath)) return;
-        if (relativePath.Contains("..", StringComparison.Ordinal))
+        if (relativePath.IndexOf("..", StringComparison.Ordinal) >= 0)
             throw new RcloneGatewayException($"relative path contains traversal: {relativePath}");
         if (Path.IsPathRooted(relativePath))
             throw new RcloneGatewayException($"relative path must not be absolute: {relativePath}");

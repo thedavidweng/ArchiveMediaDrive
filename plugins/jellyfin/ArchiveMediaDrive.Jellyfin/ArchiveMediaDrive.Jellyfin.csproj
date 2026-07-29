@@ -6,10 +6,10 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Jellyfin.Controller" Version="10.11.11">
+    <PackageReference Include="Jellyfin.Controller">
       <ExcludeAssets>runtime</ExcludeAssets>
     </PackageReference>
-    <PackageReference Include="Jellyfin.Model" Version="10.11.11">
+    <PackageReference Include="Jellyfin.Model">
       <ExcludeAssets>runtime</ExcludeAssets>
     </PackageReference>
     <ProjectReference Include="../../../shared/dotnet/ArchiveMediaDrive.Core/ArchiveMediaDrive.Core.csproj" />

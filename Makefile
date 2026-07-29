@@ -1,10 +1,20 @@
-.PHONY: test test-dotnet test-python test-kodi verify-tree
+.PHONY: ci build test test-dotnet test-python test-kodi verify-tree format restore-locked
 
-test: test-dotnet test-python test-kodi verify-tree
+ci: restore-locked build test format verify-tree
+
+build:
+	dotnet build ArchiveMediaDrive.sln
+
+restore-locked:
+	dotnet restore --locked-mode ArchiveMediaDrive.sln
+
+format:
+	dotnet format --verify-no-changes
+
+test: test-dotnet test-python test-kodi
 
 test-dotnet:
-	dotnet test shared/dotnet/ArchiveMediaDrive.Core.Tests/ArchiveMediaDrive.Core.Tests.csproj --configuration Release
-	dotnet test plugins/jellyfin/ArchiveMediaDrive.Jellyfin.Tests/ArchiveMediaDrive.Jellyfin.Tests.csproj --configuration Release
+	dotnet test ArchiveMediaDrive.sln --configuration Release
 
 test-python:
 	cd tools/reference-cli && python3 -m unittest discover -s tests -v

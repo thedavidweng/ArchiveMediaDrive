@@ -215,7 +215,7 @@ public sealed class RcloneRuntimeManager : IRcloneRuntimeManager
         foreach (var entry in archive.Entries)
         {
             if (entry.FullName.Length == 0) continue;
-            if (entry.FullName.Contains("..", StringComparison.Ordinal))
+            if (entry.FullName.IndexOf("..", StringComparison.Ordinal) >= 0)
                 throw new RcloneRuntimeException($"archive contains path traversal entry: {entry.FullName}");
             if (Path.IsPathRooted(entry.FullName))
                 throw new RcloneRuntimeException($"archive contains absolute path entry: {entry.FullName}");
