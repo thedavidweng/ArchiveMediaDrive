@@ -22,17 +22,21 @@ public sealed class RcloneGatewayException : Exception
 
 public sealed class RcloneProcess : IRcloneProcess
 {
+    private static readonly TimeSpan DefaultCommandTimeout = TimeSpan.FromSeconds(30);
+
     private readonly string _rcloneBinary;
     private readonly string _configPath;
     private readonly string _remoteName;
     private readonly string? _user;
     private readonly string? _password;
+    private readonly TimeSpan _commandTimeout;
 
-    public RcloneProcess(string rcloneBinary, string configPath, string remoteName, string? user = null, string? password = null)
+    public RcloneProcess(string rcloneBinary, string configPath, string remoteName, TimeSpan? commandTimeout = null, string? user = null, string? password = null)
     {
         _rcloneBinary = rcloneBinary;
         _configPath = configPath;
         _remoteName = remoteName;
+        _commandTimeout = commandTimeout ?? DefaultCommandTimeout;
         _user = user;
         _password = password;
     }
@@ -65,12 +69,16 @@ public sealed class RcloneProcess : IRcloneProcess
 
         try
         {
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            cts.CancelAfter(_commandTimeout);
+            var linkedToken = cts.Token;
+
             var stdoutTask = proc.StandardOutput.ReadToEndAsync();
             var stderrTask = proc.StandardError.ReadToEndAsync();
 
             while (!proc.HasExited)
             {
-                cancellationToken.ThrowIfCancellationRequested();
+                linkedToken.ThrowIfCancellationRequested();
                 proc.WaitForExit(100);
             }
 
@@ -89,7 +97,8 @@ public sealed class RcloneProcess : IRcloneProcess
         catch (OperationCanceledException)
         {
             try { proc.Kill(); } catch { }
-            throw;
+            proc.WaitForExit(5000);
+            throw new RcloneProcessException($"rclone command timed out after {_commandTimeout.TotalSeconds}s: {command}");
         }
     }
 
@@ -266,7 +275,7 @@ public sealed class RcloneLoopbackGateway : IRcloneGateway
 
         var environment = _environment ?? throw new InvalidOperationException("no rclone process or environment configured");
         var exe = await environment.EnsureReadyAsync(cancellationToken);
-        return new RcloneProcess(exe, environment.ConfigPath, RemotePrefix, _user, _password);
+        return new RcloneProcess(exe, environment.ConfigPath, RemotePrefix, user: _user, password: _password);
     }
 
     private static void ValidateIdentifier(string identifier)
