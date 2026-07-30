@@ -1,0 +1,25 @@
+<div data-role="page" class="page type-interior pluginConfigurationPage" data-require="emby-button" data-controller="__plugin/ArchiveMediaDriveStatusjs">
+    <div data-role="content">
+        <div class="content-primary">
+            <h2>ArchiveMediaDrive Status</h2>
+            <div id="status" class="statusSection">
+                <div class="statusField"><strong>Plugin version:</strong> <span id="PluginVersion">-</span></div>
+                <div class="statusField"><strong>Host version:</strong> <span id="HostVersion">-</span></div>
+                <div class="statusField"><strong>Runtime status:</strong> <span id="RuntimeStatus">-</span></div>
+                <div class="statusField"><strong>rclone version:</strong> <span id="RcloneVersion">-</span></div>
+                <div class="statusField"><strong>rclone hash:</strong> <span id="RcloneHash">-</span></div>
+                <div class="statusField"><strong>Mount status:</strong> <span id="MountStatus">-</span></div>
+                <div class="statusField"><strong>Mount path:</strong> <span id="MountPath">-</span></div>
+                <div class="statusField"><strong>Cache usage:</strong> <span id="CacheUsage">-</span></div>
+                <div class="statusField"><strong>Last refresh:</strong> <span id="LastRefresh">-</span></div>
+                <div class="statusField"><strong>Source count:</strong> <span id="SourceCount">-</span></div>
+                <div class="statusField"><strong>Item count:</strong> <span id="ItemCount">-</span></div>
+                <div class="statusField"><strong>Last error:</strong> <span id="LastError">-</span></div>
+
+                <button id="DownloadDiagnostics" type="button" is="emby-button" class="raised button-submit block">
+                    <span>Download diagnostics</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>

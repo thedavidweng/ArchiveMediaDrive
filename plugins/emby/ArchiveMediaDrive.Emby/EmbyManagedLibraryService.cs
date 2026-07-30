@@ -15,6 +15,9 @@ public sealed class EmbyManagedLibraryService : IDisposable
     private ManagedLibraryService? _managedLibrary;
     private bool _disposed;
 
+    public string MountPoint => Path.Combine(_dataDir, "mount");
+    public bool IsRunning => _managedLibrary?.IsRunning ?? false;
+
     public EmbyManagedLibraryService(RcloneEnvironment rcloneEnvironment, IIaSourceResolver resolver, string dataDir)
     {
         _rcloneEnvironment = rcloneEnvironment;

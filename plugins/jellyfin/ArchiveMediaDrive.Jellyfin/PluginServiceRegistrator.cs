@@ -46,6 +46,8 @@ public sealed class PluginServiceRegistrator : IPluginServiceRegistrator
             return new RcloneLoopbackGateway(env);
         });
 
+        serviceCollection.AddSingleton<IDiagnosticsPackageBuilder, DiagnosticsPackageBuilder>();
+
         serviceCollection.AddSingleton<ChannelMappingService>();
 
         serviceCollection.AddSingleton<IReadOnlyList<SourceDefinition>>(_ =>
@@ -80,6 +82,19 @@ public sealed class PluginServiceRegistrator : IPluginServiceRegistrator
                 mountPoint,
                 config.ManagedLibraryName);
         });
+
+        serviceCollection.AddSingleton<IConfigurationCoordinator>(sp =>
+        {
+            var env = sp.GetRequiredService<RcloneEnvironment>();
+            var refresh = sp.GetRequiredService<SourceRefreshService>();
+            var store = sp.GetRequiredService<ISourceSnapshotStore>();
+            var resolver = sp.GetRequiredService<IIaSourceResolver>();
+            var mount = sp.GetRequiredService<ManagedLibraryService>();
+            return new ConfigurationCoordinator(env, refresh, store, resolver, dataDir, mount);
+        });
+
+        serviceCollection.AddTransient<ArchiveMediaDriveController>();
+
         serviceCollection.AddHostedService<ManagedLibraryHostedService>();
     }
 
