@@ -80,7 +80,7 @@ jobs:
       - run: python package_release.py
       - run: python -m pip install kodi-addon-checker
       - run: kodi-addon-checker --skip-dependency-checks plugin.video.archivemediadrive
-      - run: kodi-addon-checker --skip-dependency-checks repository.archivemediadrive
+      - run: kodi-addon-checker --skip-dependency-checks repo/repository.archivemediadrive
 
   dotnet-core:
     runs-on: ubuntu-latest

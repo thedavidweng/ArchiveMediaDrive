@@ -174,7 +174,7 @@ jobs:
         run: |
           case "$PLATFORM" in
             kodi)
-              python3 -c "import zipfile, sys; z=zipfile.ZipFile('dist/ArchiveMediaDrive.Kodi-${{ github.ref_name }}.zip'); bad=[n for n in z.namelist() if n.endswith(('.so','.dll','.exe'))]; sys.exit(1 if bad else 0)"
+              python3 -c "import zipfile, sys; z=zipfile.ZipFile('dist/ArchiveMediaDrive.Kodi-${{ github.ref_name }}.zip'); bad=[n for n in z.namelist() if n.endswith(('.so','.dll','.exe','.pyd','.dylib'))]; sys.exit(1 if bad else 0)"
               ;;
             jellyfin)
               if unzip -Z1 "dist/ArchiveMediaDrive.Jellyfin-${{ github.ref_name }}.zip" | grep -qE '^(Jellyfin\.|MediaBrowser\.).*\.dll$'; then exit 1; fi
