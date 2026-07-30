@@ -1,4 +1,6 @@
 import json
+import shutil
+import tempfile
 import unittest
 from unittest.mock import MagicMock, patch
 from urllib.parse import parse_qs, urlparse
@@ -18,6 +20,10 @@ class RouterTests(unittest.TestCase):
             "xbmcplugin": self._xbmcplugin,
             "xbmcaddon": self._xbmcaddon,
         }
+        self._xbmcgui.Dialog.return_value.select.return_value = -1
+        self._xbmcgui.Dialog.return_value.input.return_value = ""
+        self._xbmcgui.Dialog.return_value.yesno.return_value = False
+        self._xbmcgui.DialogProgress.return_value.iscanceled.return_value = False
 
     def _run(self, route: str, extra_params: dict | None = None, sources=None, ia_items=None) -> None:
         params = {"route": route}
@@ -27,8 +33,12 @@ class RouterTests(unittest.TestCase):
         handle = 0
         argv = ["plugin://plugin.video.archivemediadrive/", str(handle), f"?{query}"]
 
+        tmpdir = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmpdir)
+
         addon = MagicMock()
         addon.getSettingString.return_value = json.dumps(sources or [])
+        addon.getAddonInfo.return_value = tmpdir
         self._xbmcaddon.Addon.return_value = addon
 
         list_items = []
@@ -59,10 +69,11 @@ class RouterTests(unittest.TestCase):
 
         self._xbmcplugin.endOfDirectory.assert_called_once()
         calls = self._xbmcplugin.addDirectoryItem.call_args_list
-        self.assertEqual(len(calls), 2)
+        self.assertEqual(len(calls), 3)
         labels = [c.args[2].label for c in calls]
         self.assertIn("Prelinger", labels)
         self.assertIn("Trip Down", labels)
+        self.assertIn("Manage sources", labels)
 
     def test_source_route_lists_items_from_ia_search(self) -> None:
         sources = [{"id": "prelinger", "name": "Prelinger", "kind": "collection", "value": "prelinger"}]
@@ -82,7 +93,7 @@ class RouterTests(unittest.TestCase):
             qs = parse_qs(parsed.query)
             self.assertEqual(qs["route"], ["item"])
 
-    def test_item_route_lists_files_preserving_non_playable(self) -> None:
+    def test_item_route_filters_non_playable_files(self) -> None:
         ia_items = {
             "item:TripDown1905": [
                 {"name": "TripDown1905.mp4", "size": 1000, "format": "MPEG4"},
@@ -93,7 +104,11 @@ class RouterTests(unittest.TestCase):
         self._run("item", extra_params={"identifier": "TripDown1905"}, ia_items=ia_items)
 
         calls = self._xbmcplugin.addDirectoryItem.call_args_list
-        self.assertEqual(len(calls), 3)
+        self.assertEqual(len(calls), 2)
+        labels = [c.args[2].label for c in calls]
+        self.assertIn("TripDown1905.mp4", labels)
+        self.assertIn("thumbs", labels)
+        self.assertNotIn("TripDown1905.srt", labels)
 
     def test_play_route_resolves_to_archive_download_url(self) -> None:
         ia_items = {
@@ -123,7 +138,7 @@ class RouterTests(unittest.TestCase):
         labels = [c.args[2].label for c in calls]
         self.assertIn("video", labels)
         self.assertIn("thumbs", labels)
-        self.assertIn("readme.txt", labels)
+        self.assertNotIn("readme.txt", labels)
         self.assertNotIn("main.mkv", labels)
         self.assertNotIn("image.jpg", labels)
 

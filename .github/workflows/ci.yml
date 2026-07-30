@@ -65,6 +65,23 @@ jobs:
       - run: python build_vendor.py
       - run: python test_vendor_smoke.py
 
+  kodi-addon-checker:
+    runs-on: ubuntu-latest
+    needs: [kodi, kodi-vendor]
+    defaults:
+      run:
+        working-directory: plugins/kodi
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python build_vendor.py
+      - run: python package_release.py
+      - run: python -m pip install kodi-addon-checker
+      - run: kodi-addon-checker --skip-dependency-checks plugin.video.archivemediadrive
+      - run: kodi-addon-checker --skip-dependency-checks repository.archivemediadrive
+
   dotnet-core:
     runs-on: ubuntu-latest
     steps:
@@ -121,6 +138,9 @@ jobs:
         run: |
           python build_vendor.py
           python package_release.py ../../plugin.video.archivemediadrive-$GITHUB_REF_NAME.zip
+          cp repo/repository.archivemediadrive/repository.archivemediadrive-*.zip ../../
+          cp repo/addons.xml ../../
+          cp repo/addons.xml.md5 ../../
 
       - name: Build Jellyfin plugin ZIP
         run: |
@@ -152,11 +172,15 @@ jobs:
           name: release-artifacts-${{ github.ref_name }}
           path: |
             *.zip
+            *.xml
+            *.md5
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
             *.zip
+            *.xml
+            *.md5
           generate_release_notes: true
 
