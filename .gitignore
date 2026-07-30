@@ -11,3 +11,4 @@ bin/
 obj/
 plugins/kodi/plugin.video.archivemediadrive/resources/lib/vendor/
 plugins/kodi/repo/
+plugins/kodi/repository.archivemediadrive/
