@@ -19,7 +19,14 @@ public sealed class RcloneEnvironmentTests
         public string ExecutablePath { get; }
         public string RuntimeDirectory { get; }
         public string ReceiptPath { get; }
-        public Task<string> EnsureInstalledAsync(CancellationToken cancellationToken) => Task.FromResult(ExecutablePath);
+        public int InstallCallCount { get; private set; }
+
+        public Task<string> EnsureInstalledAsync(CancellationToken cancellationToken)
+        {
+            InstallCallCount++;
+            return Task.FromResult(ExecutablePath);
+        }
+
         public Task VerifyAsync(CancellationToken cancellationToken) => Task.CompletedTask;
         public Task RepairAsync(CancellationToken cancellationToken) => Task.CompletedTask;
         public Task RemoveAsync(CancellationToken cancellationToken) => Task.CompletedTask;
@@ -37,6 +44,22 @@ public sealed class RcloneEnvironmentTests
     {
         var path = Path.Combine(Path.GetTempPath(), $"amd-fake-rclone-{Guid.NewGuid():N}");
         File.WriteAllText(path, "#!/bin/sh\nexit 0\n");
+        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            using var proc = Process.Start(new ProcessStartInfo("chmod", $"u+x \"{path}\"")
+            {
+                UseShellExecute = false,
+                CreateNoWindow = true,
+            });
+            proc?.WaitForExit();
+        }
+        return path;
+    }
+
+    private static string CreateFailingFakeRclone()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"amd-fake-rclone-{Guid.NewGuid():N}");
+        File.WriteAllText(path, "#!/bin/sh\n[ \"$1\" = \"config\" ] && exit 0\nexit 1\n");
         if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
             using var proc = Process.Start(new ProcessStartInfo("chmod", $"u+x \"{path}\"")
@@ -135,6 +158,118 @@ public sealed class RcloneEnvironmentTests
         {
             Directory.Delete(tmp, true);
             File.Delete(rclone);
+        }
+    }
+
+    [Fact]
+    public async Task WriteCombineConfigAsync_rolls_back_when_candidate_config_fails_validation()
+    {
+        var tmp = Path.Combine(Path.GetTempPath(), "amd-env-" + Guid.NewGuid().ToString("N"));
+        var rclone = CreateFailingFakeRclone();
+        Directory.CreateDirectory(tmp);
+        try
+        {
+            var env = new RcloneEnvironment(new FakeRuntimeManager(rclone), tmp);
+            var sources = new[]
+            {
+                new SourceDefinition { Id = "s1", Name = "A", Kind = SourceKind.Collection, Value = "x", Enabled = true },
+            };
+            var resolver = new FakeResolver(_ => new[] { "item1" });
+
+            var ok = await env.WriteCombineConfigAsync(sources, resolver, CancellationToken.None);
+
+            Assert.False(ok);
+            var config = File.ReadAllText(env.ConfigPath);
+            Assert.DoesNotContain("[archive-media-drive-library]", config);
+            Assert.DoesNotContain(".new", Directory.GetFiles(tmp).Select(Path.GetFileName).ToList());
+        }
+        finally
+        {
+            Directory.Delete(tmp, true);
+            File.Delete(rclone);
+        }
+    }
+
+    [Fact]
+    public async Task WriteCombineConfigAsync_deduplicates_identifiers_from_different_sources()
+    {
+        var tmp = Path.Combine(Path.GetTempPath(), "amd-env-" + Guid.NewGuid().ToString("N"));
+        var rclone = CreateFakeRclone();
+        Directory.CreateDirectory(tmp);
+        try
+        {
+            var env = new RcloneEnvironment(new FakeRuntimeManager(rclone), tmp);
+            var sources = new[]
+            {
+                new SourceDefinition { Id = "s1", Name = "A", Kind = SourceKind.Collection, Value = "x", Enabled = true },
+                new SourceDefinition { Id = "s1", Name = "A", Kind = SourceKind.Search, Value = "x", Enabled = true },
+            };
+            var resolver = new FakeResolver(_ => new[] { "item1" });
+
+            var ok = await env.WriteCombineConfigAsync(sources, resolver, CancellationToken.None);
+
+            Assert.True(ok);
+            var config = File.ReadAllText(env.ConfigPath);
+            Assert.Contains("\"A--s1/item1=archive-media-drive-ia:item1\"", config);
+            Assert.Equal(1, config.Split("A--s1/item1").Length - 1);
+        }
+        finally
+        {
+            Directory.Delete(tmp, true);
+            File.Delete(rclone);
+        }
+    }
+
+    [Fact]
+    public async Task WriteCombineConfigAsync_skips_source_that_fails_to_resolve()
+    {
+        var tmp = Path.Combine(Path.GetTempPath(), "amd-env-" + Guid.NewGuid().ToString("N"));
+        var rclone = CreateFakeRclone();
+        Directory.CreateDirectory(tmp);
+        try
+        {
+            var env = new RcloneEnvironment(new FakeRuntimeManager(rclone), tmp);
+            var sources = new[]
+            {
+                new SourceDefinition { Id = "fail", Name = "Fail", Kind = SourceKind.Collection, Value = "x", Enabled = true },
+                new SourceDefinition { Id = "ok", Name = "Ok", Kind = SourceKind.Collection, Value = "y", Enabled = true },
+            };
+            var resolver = new FakeResolver(s => s.Id == "fail" ? throw new SourceContractException("down") : new[] { "item1" });
+
+            var ok = await env.WriteCombineConfigAsync(sources, resolver, CancellationToken.None);
+
+            Assert.True(ok);
+            var config = File.ReadAllText(env.ConfigPath);
+            Assert.Contains("\"Ok--ok/item1=archive-media-drive-ia:item1\"", config);
+            Assert.DoesNotContain("Fail", config);
+        }
+        finally
+        {
+            Directory.Delete(tmp, true);
+            File.Delete(rclone);
+        }
+    }
+
+    [Fact]
+    public async Task EnsureReadyAsync_is_concurrent_and_runs_install_once()
+    {
+        var manager = new FakeRuntimeManager("/tmp/amd-concurrent-rclone");
+        var tmp = Path.Combine(Path.GetTempPath(), "amd-env-" + Guid.NewGuid().ToString("N"));
+        var env = new RcloneEnvironment(manager, tmp);
+        Directory.CreateDirectory(tmp);
+        try
+        {
+            var t1 = Task.Run(() => env.EnsureReadyAsync(CancellationToken.None));
+            var t2 = Task.Run(() => env.EnsureReadyAsync(CancellationToken.None));
+
+            var results = await Task.WhenAll(t1, t2);
+
+            Assert.Equal(results[0], results[1]);
+            Assert.Equal(1, manager.InstallCallCount);
+        }
+        finally
+        {
+            Directory.Delete(tmp, true);
         }
     }
 }
