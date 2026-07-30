@@ -1,0 +1,20 @@
+[
+  {
+    "category": "Channels",
+    "guid": "14c1491f-2509-4ea6-9226-613ca9971ed8",
+    "name": "ArchiveMediaDrive",
+    "description": "Use Internet Archive as a Jellyfin media source.",
+    "owner": "ArchiveMediaDrive contributors",
+    "overview": "Use Internet Archive as a Jellyfin media source.",
+    "versions": [
+      {
+        "version": "0.1.0",
+        "changelog": "Initial release.",
+        "targetAbi": "10.11.11.0",
+        "sourceUrl": "https://github.com/thedavidweng/ArchiveMediaDrive/releases/download/jellyfin-v0.1.0/ArchiveMediaDrive.Jellyfin-jellyfin-v0.1.0.zip",
+        "checksum": "sha256:REPLACE_AT_RELEASE",
+        "timestamp": "2026-01-01T00:00:00Z"
+      }
+    ]
+  }
+]

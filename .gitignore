@@ -10,3 +10,4 @@ docs/internal/
 bin/
 obj/
 plugins/kodi/plugin.video.archivemediadrive/resources/lib/vendor/
+plugins/kodi/repo/

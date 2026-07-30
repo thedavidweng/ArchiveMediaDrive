@@ -1,0 +1,295 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'kodi-v*'
+      - 'jellyfin-v*'
+      - 'emby-v*'
+
+permissions: {}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: write
+    outputs:
+      platform: ${{ steps.versions.outputs.platform }}
+      version: ${{ steps.versions.outputs.version }}
+      artifact_name: ${{ steps.versions.outputs.artifact_name }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Setup Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: '3.12'
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Validate tag and version
+        id: versions
+        run: |
+          python3 - "$GITHUB_REF_NAME" <<'PY'
+          import json
+          import os
+          import re
+          import sys
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+
+          tag = sys.argv[1]
+          match = re.fullmatch(r'(kodi|jellyfin|emby)-v(\d+)\.(\d+)\.(\d+)', tag)
+          if not match:
+              print(f'invalid tag {tag}', file=sys.stderr)
+              raise SystemExit(1)
+
+          platform = match.group(1)
+          version = f'{match.group(2)}.{match.group(3)}.{match.group(4)}'
+
+          with open('Directory.Build.props') as f:
+              core_version = re.search(r'<Version>([^<]+)</Version>', f.read()).group(1)
+
+          if platform == 'kodi':
+              tree = ET.parse('plugins/kodi/plugin.video.archivemediadrive/addon.xml')
+              addon_version = tree.getroot().get('version')
+              if addon_version != version:
+                  print(f'kodi addon version {addon_version} does not match tag {version}', file=sys.stderr)
+                  raise SystemExit(1)
+          else:
+              if core_version != version:
+                  print(f'{platform} core version {core_version} does not match tag {version}', file=sys.stderr)
+                  raise SystemExit(1)
+
+          if platform == 'jellyfin':
+              manifest = json.load(open('plugins/jellyfin/manifest.json'))
+              manifest_version = manifest[0]['versions'][0]['version']
+              if manifest_version != version:
+                  print(f'jellyfin manifest version {manifest_version} does not match tag {version}', file=sys.stderr)
+                  raise SystemExit(1)
+
+          artifact_name = {
+              'kodi': 'ArchiveMediaDrive.Kodi',
+              'jellyfin': 'ArchiveMediaDrive.Jellyfin',
+              'emby': 'ArchiveMediaDrive.Emby',
+          }[platform]
+
+          print(f'platform={platform}')
+          print(f'version={version}')
+          print(f'artifact_name={artifact_name}')
+
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              f.write(f'platform={platform}\n')
+              f.write(f'version={version}\n')
+              f.write(f'artifact_name={artifact_name}\n')
+          PY
+
+      - name: Restore and test
+        run: |
+          dotnet restore --locked-mode ArchiveMediaDrive.sln
+          dotnet format --verify-no-changes
+          dotnet test ArchiveMediaDrive.sln --configuration Release
+
+      - name: Install rclone
+        run: curl https://rclone.org/install.sh | sudo bash
+
+      - name: Host integration tests
+        run: |
+          dotnet test shared/dotnet/ArchiveMediaDrive.Core.Tests/ArchiveMediaDrive.Core.Tests.csproj --configuration Release --filter "Category=Integration"
+
+      - name: Build package
+        id: build
+        env:
+          ARTIFACT_NAME: ${{ steps.versions.outputs.artifact_name }}
+          PLATFORM: ${{ steps.versions.outputs.platform }}
+          REPO_BASE_URL: https://raw.githubusercontent.com/thedavidweng/ArchiveMediaDrive/kodi-repo/
+          VERSION: ${{ steps.versions.outputs.version }}
+        run: |
+          mkdir -p dist
+          case "$PLATFORM" in
+            kodi)
+              cd plugins/kodi
+              python3 build_vendor.py
+              python3 test_vendor_smoke.py
+              python3 package_release.py
+              cd ../..
+              cp "plugins/kodi/repo/plugin.video.archivemediadrive/plugin.video.archivemediadrive-$VERSION.zip" "dist/$ARTIFACT_NAME-$GITHUB_REF_NAME.zip"
+              cp "plugins/kodi/repo/repository.archivemediadrive/repository.archivemediadrive-$VERSION.zip" "dist/${ARTIFACT_NAME}Repo-$GITHUB_REF_NAME.zip"
+              cp "plugins/kodi/repo/addons.xml" "dist/$ARTIFACT_NAME-$GITHUB_REF_NAME-addons.xml"
+              cp "plugins/kodi/repo/addons.xml.md5" "dist/$ARTIFACT_NAME-$GITHUB_REF_NAME-addons.xml.md5"
+              ;;
+            jellyfin)
+              dotnet publish plugins/jellyfin/ArchiveMediaDrive.Jellyfin/ArchiveMediaDrive.Jellyfin.csproj -c Release -o ./artifacts/jellyfin
+              mkdir -p ./artifacts/jellyfin/runtime/rclone
+              cp runtime/rclone/manifest.json ./artifacts/jellyfin/runtime/rclone/manifest.json
+              rm -f ./artifacts/jellyfin/*.pdb ./artifacts/jellyfin/*.xml
+              rm -f ./artifacts/jellyfin/ArchiveMediaDrive.Jellyfin.deps.json
+              rm -f ./artifacts/jellyfin/ArchiveMediaDrive.Jellyfin.runtimeconfig.json
+              rm -f ./artifacts/jellyfin/web.config
+              rm -f ./artifacts/jellyfin/Jellyfin.*.dll
+              rm -f ./artifacts/jellyfin/MediaBrowser.*.dll
+              cp LICENSE ./artifacts/jellyfin/LICENSE
+              cp NOTICE ./artifacts/jellyfin/NOTICE
+              cd ./artifacts/jellyfin
+              zip -r "../../dist/$ARTIFACT_NAME-$GITHUB_REF_NAME.zip" .
+              cd ../..
+
+              python3 - "$GITHUB_REF_NAME" "dist/$ARTIFACT_NAME-$GITHUB_REF_NAME.zip" <<'PY'
+              import datetime, hashlib, json, re, sys
+              tag, zip_path = sys.argv[1], sys.argv[2]
+              sha256 = hashlib.sha256(open(zip_path, 'rb').read()).hexdigest()
+              manifest = json.load(open('plugins/jellyfin/manifest.json'))
+              manifest[0]['versions'][0]['checksum'] = f'sha256:{sha256}'
+              manifest[0]['versions'][0]['timestamp'] = datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+              manifest[0]['versions'][0]['sourceUrl'] = f'https://github.com/thedavidweng/ArchiveMediaDrive/releases/download/{tag}/{re.search(r"[^/]+$", zip_path).group(0)}'
+              out = f"dist/{zip_path.split('/')[-1].replace('.zip', '.manifest.json')}"
+              json.dump(manifest, open(out, 'w'), indent=2)
+              PY
+              ;;
+            emby)
+              dotnet publish plugins/emby/ArchiveMediaDrive.Emby/ArchiveMediaDrive.Emby.csproj -c Release -o ./artifacts/emby
+              mkdir -p ./artifacts/emby/runtime/rclone
+              cp runtime/rclone/manifest.json ./artifacts/emby/runtime/rclone/manifest.json
+              rm -f ./artifacts/emby/*.pdb ./artifacts/emby/*.xml
+              rm -f ./artifacts/emby/ArchiveMediaDrive.Emby.deps.json
+              rm -f ./artifacts/emby/Emby.*.dll
+              rm -f ./artifacts/emby/MediaBrowser.*.dll
+              cp LICENSE ./artifacts/emby/LICENSE
+              cp NOTICE ./artifacts/emby/NOTICE
+              cd ./artifacts/emby
+              zip -r "../../dist/$ARTIFACT_NAME-$GITHUB_REF_NAME.zip" .
+              cd ../..
+              ;;
+          esac
+
+      - name: Artifact smoke tests
+        env:
+          PLATFORM: ${{ steps.versions.outputs.platform }}
+        run: |
+          case "$PLATFORM" in
+            kodi)
+              python3 -c "import zipfile, sys; z=zipfile.ZipFile('dist/ArchiveMediaDrive.Kodi-${{ github.ref_name }}.zip'); bad=[n for n in z.namelist() if n.endswith(('.so','.dll','.exe'))]; sys.exit(1 if bad else 0)"
+              ;;
+            jellyfin)
+              if unzip -Z1 "dist/ArchiveMediaDrive.Jellyfin-${{ github.ref_name }}.zip" | grep -qE '^(Jellyfin\.|MediaBrowser\.).*\.dll$'; then exit 1; fi
+              ;;
+            emby)
+              if unzip -Z1 "dist/ArchiveMediaDrive.Emby-${{ github.ref_name }}.zip" | grep -qE '^(Emby\.|MediaBrowser\.).*\.dll$'; then exit 1; fi
+              ;;
+          esac
+
+      - name: Reject forbidden files and placeholders
+        env:
+          PLATFORM: ${{ steps.versions.outputs.platform }}
+        run: |
+          if [ "$PLATFORM" = "kodi" ]; then
+            ! find plugins/kodi/repo -type f \( -name '*.so' -o -name '*.dll' -o -name '*.exe' \) | grep .
+          fi
+          if grep -R "REPLACE_FROM_OFFICIAL_SHA256SUMS" runtime artifacts 2>/dev/null; then exit 1; fi
+
+      - name: Generate SBOM
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
+        with:
+          path: ${{ steps.versions.outputs.platform == 'kodi' && './plugins/kodi/plugin.video.archivemediadrive' || format('./artifacts/{0}', steps.versions.outputs.platform) }}
+          format: cyclonedx-json
+          output-file: ./dist/${{ steps.versions.outputs.artifact_name }}-${{ github.ref_name }}.sbom.json
+          upload-artifact: false
+          upload-release-assets: false
+
+      - name: Upload dist artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: release-dist-${{ github.ref_name }}
+          path: dist/
+          if-no-files-found: error
+
+      - name: Upload kodi repository artifact
+        if: steps.versions.outputs.platform == 'kodi'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: kodi-repo-${{ github.ref_name }}
+          path: plugins/kodi/repo/
+          if-no-files-found: error
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      contents: write
+      actions: read
+      id-token: write
+      attestations: write
+    steps:
+      - name: Download dist
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: release-dist-${{ github.ref_name }}
+          path: dist/
+
+      - name: Download kodi repository
+        if: needs.build.outputs.platform == 'kodi'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: kodi-repo-${{ github.ref_name }}
+          path: kodi-repo/
+
+      - name: Generate SHA-256 checksums
+        run: |
+          python3 - <<'PY'
+          import hashlib
+          from pathlib import Path
+
+          dist = Path('dist')
+          sums = []
+          for path in sorted(dist.iterdir()):
+              if path.is_file() and path.name != 'sha256sums.txt':
+                  digest = hashlib.sha256(path.read_bytes()).hexdigest()
+                  sums.append(f'{digest}  {path.name}')
+          (dist / 'sha256sums.txt').write_text('\n'.join(sums) + '\n', encoding='utf-8')
+          PY
+
+      - name: Attest release artifacts
+        uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4.1.1
+        with:
+          subject-path: dist/*
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
+        with:
+          files: dist/*
+          generate_release_notes: true
+
+      - name: Publish Kodi repository branch
+        if: needs.build.outputs.platform == 'kodi'
+        run: |
+          cd kodi-repo
+          git init
+          git checkout -b kodi-repo
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git remote add origin "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git"
+          git add -A
+          git commit -m "Publish Kodi repository for ${{ github.ref_name }}"
+          git push --force origin kodi-repo
+
+      - name: Publish Jellyfin repository branch
+        if: needs.build.outputs.platform == 'jellyfin'
+        run: |
+          mkdir -p jellyfin-repo
+          cp "dist/ArchiveMediaDrive.Jellyfin-${{ github.ref_name }}.manifest.json" jellyfin-repo/manifest.json
+          cd jellyfin-repo
+          git init
+          git checkout -b jellyfin-repo
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git remote add origin "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git"
+          git add -A
+          git commit -m "Publish Jellyfin repository for ${{ github.ref_name }}"
+          git push --force origin jellyfin-repo
