@@ -48,8 +48,8 @@ _REQUIREMENTS = [
      "55b0b0dbd97462d06ebee91e4dac24ed4d4702be82b24f07e6c1d27e08cea220"),
 ]
 
-_COMPILED_EXTENSIONS = {".so", ".pyd", ".dll", ".dylib", ".pyc", ".pyo"}
-_STRIP_DIRS = {"__pycache__", ".dist-info", ".egg-info", "tests", "test"}
+_COMPILED_EXTENSIONS = {".so", ".pyd", ".dll", ".dylib", ".pyc", ".pyo", ".sh", ".js", ".1"}
+_STRIP_DIRS = {"__pycache__", ".dist-info", ".egg-info", "tests", "test", "bin"}
 
 
 def _download(url: str, dest: Path) -> None:
@@ -70,7 +70,7 @@ def _should_strip(name: str) -> bool:
     parts = Path(name).parts
     if "licenses" in parts:
         return False
-    return any(part in _STRIP_DIRS for part in parts)
+    return any(part in _STRIP_DIRS or part.endswith(".dist-info") for part in parts)
 
 
 def _collect_license_texts() -> list[tuple[str, str]]:
@@ -143,6 +143,7 @@ def build() -> None:
                 dest = _VENDOR_DIR / rel
                 dest.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(src, dest)
+                dest.chmod(0o644)
 
     init_file = _VENDOR_DIR / "__init__.py"
     if not init_file.exists():

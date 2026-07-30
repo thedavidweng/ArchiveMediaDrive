@@ -86,3 +86,13 @@ class Source:
 
     def to_json(self) -> str:
         return json.dumps(self.to_dict(), separators=(",", ":"), ensure_ascii=False)
+
+    @classmethod
+    def from_dict(cls, data: dict) -> Source:
+        mapping = {
+            "schemaVersion": "schema_version",
+            "refreshMinutes": "refresh_minutes",
+            "authenticationRef": "authentication_ref",
+        }
+        kwargs = {mapping.get(k, k): v for k, v in data.items()}
+        return cls(**kwargs)
