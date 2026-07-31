@@ -54,7 +54,7 @@ Modern Plex does not provide a supported content-provider plugin path. Plex remo
 
 ## Installation model
 
-The repository currently contains scaffolds; published packages will install through each host's native extension workflow.
+Published packages install through each host's native extension workflow.
 
 ### Kodi
 
@@ -67,10 +67,10 @@ Development packaging:
 
 ```bash
 python plugins/kodi/build_vendor.py
-python plugins/kodi/package_release.py plugin.video.archivemediadrive.zip
+python plugins/kodi/package_release.py
 ```
 
-`build_vendor.py` vendors the pure-Python dependencies. `package_release.py` assembles the add-on directory into a release ZIP, excluding bytecode, caches, and compiled binaries.
+`build_vendor.py` vendors the pure-Python dependencies. `package_release.py` builds a Kodi add-on ZIP, a repository add-on ZIP, `addons.xml`, and checksums under `plugins/kodi/repo/`.
 
 ### Jellyfin
 
@@ -166,17 +166,17 @@ tools/
 
 ## Current status
 
-This archive is a repository scaffold plus an implementation-grade specification. It includes:
+The repository is now an implementation. It includes:
 
-- the shared contracts;
-- Kodi, Jellyfin, and Emby project skeletons;
-- a concrete rclone runtime policy;
-- source-resolution and raw-tree boundaries;
-- packaging and release plans;
-- acceptance tests and platform-specific constraints;
-- the previous command-line prototype retained only as a reference harness.
+- shared source and runtime contracts;
+- Kodi add-on with source editor, cache, and repository packaging;
+- Jellyfin Channel and Managed Library plugin;
+- Emby Channel and Managed Library plugin;
+- pinned rclone bootstrap with checksum verification;
+- CI, security, release, and lint workflows;
+- unit and contract tests for .NET and Python.
 
-The next coding agent should implement the workstreams in `AGENT_IMPLEMENTATION_PLAN.md` without changing the architectural decisions in `SPEC.md`.
+The reference CLI under `tools/reference-cli` remains a development harness for fixtures and debugging.
 
 ## Security model
 

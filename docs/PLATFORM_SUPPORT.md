@@ -2,10 +2,10 @@
 
 | Host | Primary integration | Optional integration | Separate ArchiveMediaDrive service | Status |
 |---|---|---|---|---|
-| Kodi | Python plugin source | None required | No | Planned scaffold |
-| Jellyfin | Native Channel plugin | Plugin-managed rclone mount + standard library | No | Planned scaffold |
-| Emby | Native Channel plugin | Plugin-managed rclone mount + standard library | No | Planned scaffold |
-| Infuse | Through Jellyfin/Emby standard library; Channel behavior must be tested | — | No additional service | Acceptance target |
+| Kodi | Python plugin source | None required | No | Implemented |
+| Jellyfin | Native Channel plugin | Plugin-managed rclone mount + standard library | No | Implemented |
+| Emby | Native Channel plugin | Plugin-managed rclone mount + standard library | No | Implemented |
+| Infuse | Through Jellyfin/Emby standard library; Channel behavior must be tested | — | No additional service | UAT pending |
 | Plex | No supported provider API | Generic filesystem mount only | Would require non-native integration | Unsupported |
 
 ## Kodi constraints
