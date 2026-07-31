@@ -93,7 +93,7 @@ class RouterTests(unittest.TestCase):
             qs = parse_qs(parsed.query)
             self.assertEqual(qs["route"], ["item"])
 
-    def test_item_route_filters_non_playable_files(self) -> None:
+    def test_item_route_preserves_non_playable_files(self) -> None:
         ia_items = {
             "item:TripDown1905": [
                 {"name": "TripDown1905.mp4", "size": 1000, "format": "MPEG4"},
@@ -104,11 +104,11 @@ class RouterTests(unittest.TestCase):
         self._run("item", extra_params={"identifier": "TripDown1905"}, ia_items=ia_items)
 
         calls = self._xbmcplugin.addDirectoryItem.call_args_list
-        self.assertEqual(len(calls), 2)
+        self.assertEqual(len(calls), 3)
         labels = [c.args[2].label for c in calls]
         self.assertIn("TripDown1905.mp4", labels)
+        self.assertIn("TripDown1905.srt", labels)
         self.assertIn("thumbs", labels)
-        self.assertNotIn("TripDown1905.srt", labels)
 
     def test_play_route_resolves_to_archive_download_url(self) -> None:
         ia_items = {
@@ -138,7 +138,7 @@ class RouterTests(unittest.TestCase):
         labels = [c.args[2].label for c in calls]
         self.assertIn("video", labels)
         self.assertIn("thumbs", labels)
-        self.assertNotIn("readme.txt", labels)
+        self.assertIn("readme.txt", labels)
         self.assertNotIn("main.mkv", labels)
         self.assertNotIn("image.jpg", labels)
 

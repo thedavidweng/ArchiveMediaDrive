@@ -10,11 +10,6 @@ from .cache import load_cache, save_cache
 from .settings import load_sources, save_sources
 from .source import Source, SourceError
 
-_PLAYABLE_EXTENSIONS = {
-    ".mp4", ".mkv", ".avi", ".mov", ".webm", ".ogv", ".mpeg", ".mpg", ".m4v",
-    ".mp3", ".flac", ".ogg", ".oga", ".wav", ".m4a", ".aac", ".opus", ".weba",
-}
-
 _BASE_URL = "plugin://plugin.video.archivemediadrive/"
 _PAGE_SIZE_SOURCE = 25
 _PAGE_SIZE_ITEM = 50
@@ -25,29 +20,6 @@ def build_plugin_url(route: str, params: dict | None = None) -> str:
     if params:
         query.update(params)
     return f"{_BASE_URL}?{urlencode(query)}"
-
-
-def _is_playable(filename: str) -> bool:
-    lower = filename.lower()
-    return any(lower.endswith(ext) for ext in _PLAYABLE_EXTENSIONS)
-
-
-def _is_keepable(filename: str, is_dir: bool) -> bool:
-    if is_dir or filename.endswith("/"):
-        return True
-    if "/" in filename:
-        return True
-    return _is_playable(filename)
-
-
-def _keepable_files(files):
-    kept = []
-    for f in files:
-        name = f.name
-        is_dir = (f.format or "").lower() in ("directory",) or name.endswith("/")
-        if _is_keepable(name, is_dir):
-            kept.append(f)
-    return kept
 
 
 def _files_to_dicts(files) -> list[dict]:
@@ -102,7 +74,7 @@ def _resolve_source(addon, ia_client, source: dict, xbmcgui, force: bool = False
 
     if source["kind"] == "item":
         item = ia_client.get_item(source["value"])
-        files = _keepable_files(item.files)
+        files = item.files
         data = {
             "resolvedAt": int(time.time()),
             "source": source,
@@ -147,7 +119,7 @@ def _get_item_files(addon, ia_client, identifier: str, source_id: str):
                 return _dicts_to_files(cached["items"][identifier])
             try:
                 item = ia_client.get_item(identifier)
-                files = _keepable_files(item.files)
+                files = item.files
                 if cached is None:
                     cached = {"resolvedAt": int(time.time()), "source": source, "results": [], "items": {}}
                 cached["resolvedAt"] = int(time.time())
@@ -158,7 +130,7 @@ def _get_item_files(addon, ia_client, identifier: str, source_id: str):
                 pass
 
     item = ia_client.get_item(identifier)
-    return _keepable_files(item.files)
+    return item.files
 
 
 def _collect_entries(files, current_path: str) -> list[tuple[str, bool, str]]:
@@ -188,8 +160,7 @@ def _collect_entries(files, current_path: str) -> list[tuple[str, bool, str]]:
         elif is_format_dir:
             dirs[remainder] = rel
         else:
-            if _is_playable(name):
-                file_entries.append((remainder, rel))
+            file_entries.append((remainder, rel))
 
     result = [(name, True, path) for name, path in sorted(dirs.items())]
     result += [(name, False, rel) for name, rel in sorted(file_entries)]
@@ -509,15 +480,8 @@ def _test_source(addon, xbmcgui, ia_client, params) -> None:
     try:
         if source.get("kind") == "item":
             item = ia_client.get_item(source.get("value", ""))
-            count = sum(
-                1
-                for f in item.files
-                if _is_keepable(
-                    f.name,
-                    (f.format or "").lower() in ("directory",) or f.name.endswith("/"),
-                )
-            )
-            _notify(xbmcgui, f"{count} playable items")
+            count = len(item.files)
+            _notify(xbmcgui, f"{count} files")
         else:
             query = _source_query(source)
             count = sum(1 for _ in ia_client.search(query))
