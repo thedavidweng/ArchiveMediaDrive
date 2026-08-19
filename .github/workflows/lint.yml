@@ -27,7 +27,8 @@ jobs:
       - run: ruff check . --select E9
 
   workflow-lint:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7.0.1
       - uses: raven-actions/actionlint@v2.2.0
