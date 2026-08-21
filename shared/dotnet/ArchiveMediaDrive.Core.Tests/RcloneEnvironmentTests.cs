@@ -94,10 +94,12 @@ public sealed class RcloneEnvironmentTests
             var config = File.ReadAllText(env.ConfigPath);
             Assert.Contains("[archive-media-drive-ia]", config);
             Assert.Contains("type = internetarchive", config);
+            Assert.Contains("[archive-media-drive-library-src-0]", config);
+            Assert.Contains("\"itemA=archive-media-drive-ia:itemA\"", config);
+            Assert.Contains("\"itemB=archive-media-drive-ia:itemB\"", config);
             Assert.Contains("[archive-media-drive-library]", config);
             Assert.Contains("type = combine", config);
-            Assert.Contains("\"Prelinger--prelinger/itemA=archive-media-drive-ia:itemA\"", config);
-            Assert.Contains("\"Prelinger--prelinger/itemB=archive-media-drive-ia:itemB\"", config);
+            Assert.Contains("\"Prelinger--prelinger=archive-media-drive-library-src-0:\"", config);
             Assert.DoesNotContain("Disabled", config);
         }
         finally
@@ -152,7 +154,8 @@ public sealed class RcloneEnvironmentTests
 
             Assert.True(ok);
             var config = File.ReadAllText(env.ConfigPath);
-            Assert.Contains("\"My-Special-Source--s1/item1=archive-media-drive-ia:item1\"", config);
+            Assert.Contains("\"My-Special-Source--s1=archive-media-drive-library-src-0:\"", config);
+            Assert.Contains("\"item1=archive-media-drive-ia:item1\"", config);
         }
         finally
         {
@@ -210,8 +213,8 @@ public sealed class RcloneEnvironmentTests
 
             Assert.True(ok);
             var config = File.ReadAllText(env.ConfigPath);
-            Assert.Contains("\"A--s1/item1=archive-media-drive-ia:item1\"", config);
-            Assert.Equal(1, config.Split("A--s1/item1").Length - 1);
+            Assert.Contains("\"A--s1=archive-media-drive-library-src-0:\"", config);
+            Assert.Equal(1, config.Split("\"item1=").Length - 1);
         }
         finally
         {
@@ -240,8 +243,40 @@ public sealed class RcloneEnvironmentTests
 
             Assert.True(ok);
             var config = File.ReadAllText(env.ConfigPath);
-            Assert.Contains("\"Ok--ok/item1=archive-media-drive-ia:item1\"", config);
+            Assert.Contains("\"Ok--ok=archive-media-drive-library-src-0:\"", config);
+            Assert.Contains("\"item1=archive-media-drive-ia:item1\"", config);
             Assert.DoesNotContain("Fail", config);
+        }
+        finally
+        {
+            Directory.Delete(tmp, true);
+            File.Delete(rclone);
+        }
+    }
+
+    [Fact]
+    public async Task WriteCombineConfigAsync_throws_when_catalog_exceeds_library_item_limit()
+    {
+        var tmp = Path.Combine(Path.GetTempPath(), "amd-env-" + Guid.NewGuid().ToString("N"));
+        var rclone = CreateFakeRclone();
+        Directory.CreateDirectory(tmp);
+        try
+        {
+            var env = new RcloneEnvironment(new FakeRuntimeManager(rclone), tmp);
+            var sources = new[]
+            {
+                new SourceDefinition { Id = "s1", Name = "A", Kind = SourceKind.Collection, Value = "x", Enabled = true },
+            };
+            var identifiers = Enumerable.Range(0, RcloneEnvironment.LibraryItemLimit + 1)
+                .Select(i => $"item-{i:0000}")
+                .ToArray();
+            var resolver = new FakeResolver(_ => identifiers);
+
+            var ex = await Assert.ThrowsAsync<SourceContractException>(
+                () => env.WriteCombineConfigAsync(sources, resolver, CancellationToken.None));
+
+            Assert.Contains("channel mode", ex.Message);
+            Assert.False(File.Exists(env.ConfigPath + ".new"));
         }
         finally
         {
@@ -270,6 +305,66 @@ public sealed class RcloneEnvironmentTests
         finally
         {
             Directory.Delete(tmp, true);
+        }
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task WriteCombineConfigAsync_produces_config_real_rclone_accepts()
+    {
+        var rclone = FindRclone();
+        if (rclone is null)
+        {
+            return;
+        }
+
+        var tmp = Path.Combine(Path.GetTempPath(), "amd-env-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tmp);
+        try
+        {
+            var env = new RcloneEnvironment(new FakeRuntimeManager(rclone), tmp);
+            var sources = new[]
+            {
+                new SourceDefinition { Id = "prelinger", Name = "Prelinger", Kind = SourceKind.Collection, Value = "prelinger", Enabled = true },
+            };
+            var resolver = new FakeResolver(_ => new[] { "TripDown1905" });
+
+            var ok = await env.WriteCombineConfigAsync(sources, resolver, CancellationToken.None);
+
+            Assert.True(ok);
+            var config = File.ReadAllText(env.ConfigPath);
+            Assert.Contains("\"Prelinger--prelinger=archive-media-drive-library-src-0:\"", config);
+        }
+        finally
+        {
+            Directory.Delete(tmp, true);
+        }
+    }
+
+    private static string? FindRclone()
+    {
+        var fromEnv = Environment.GetEnvironmentVariable("AMD_TEST_RCLONE_BINARY");
+        if (!string.IsNullOrEmpty(fromEnv))
+        {
+            return File.Exists(fromEnv) ? fromEnv : null;
+        }
+
+        try
+        {
+            using var probe = Process.Start(new ProcessStartInfo("sh", "-c \"command -v rclone\"")
+            {
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                CreateNoWindow = true,
+            });
+            if (probe is null || !probe.WaitForExit(3000) || probe.ExitCode != 0)
+                return null;
+            var path = probe.StandardOutput.ReadToEnd().Trim();
+            return File.Exists(path) ? path : null;
+        }
+        catch
+        {
+            return null;
         }
     }
 }

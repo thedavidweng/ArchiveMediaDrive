@@ -33,6 +33,7 @@
 - Linux FUSE and Windows WinFsp;
 - mount start, health, server restart, unexpected exit, repair, disable, uninstall;
 - library registration and refresh;
+- catalog envelope rejection above 200 resolved items;
 - Infuse connection and playback.
 
 ## Emby

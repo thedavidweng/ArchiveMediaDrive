@@ -13,12 +13,17 @@ class RcloneError(RuntimeError):
     pass
 
 
+LIBRARY_ITEM_LIMIT = 200
+
+
 def _quote_space_sep(value: str) -> str:
     return '"' + value.replace("\\", "\\\\").replace('"', '\\"') + '"'
 
 
-def combine_upstreams(resolved: Iterable[ResolvedSource], ia_remote: str) -> tuple[str, ...]:
-    mappings: list[str] = []
+def _source_sections(
+    resolved: Iterable[ResolvedSource], *, library_remote: str, ia_remote: str
+) -> tuple[str, str]:
+    grouped: dict[str, list[str]] = {}
     seen: set[str] = set()
     for result in resolved:
         for identifier in result.identifiers:
@@ -26,8 +31,39 @@ def combine_upstreams(resolved: Iterable[ResolvedSource], ia_remote: str) -> tup
             if virtual_path in seen:
                 raise RcloneError(f"duplicate virtual path: {virtual_path}")
             seen.add(virtual_path)
-            mappings.append(f"{virtual_path}={ia_remote}:{identifier}")
-    return tuple(sorted(mappings))
+            grouped.setdefault(result.source.path, []).append(identifier)
+
+    if not grouped:
+        raise RcloneError("the resolved catalog is empty")
+
+    if len(seen) > LIBRARY_ITEM_LIMIT:
+        raise RcloneError(
+            f"the resolved catalog has {len(seen)} items; "
+            f"the mounted library supports at most {LIBRARY_ITEM_LIMIT} items; "
+            "use a channel mode adapter for larger catalogs"
+        )
+
+    sections: list[str] = []
+    top_upstreams: list[str] = []
+    for index, path in enumerate(sorted(grouped)):
+        source_remote = f"{library_remote}-src-{index}"
+        identifiers = sorted(set(grouped[path]))
+        upstreams = " ".join(_quote_space_sep(f"{item}={ia_remote}:{item}") for item in identifiers)
+        sections.append(
+            f"[{source_remote}]\n"
+            "type = combine\n"
+            f"upstreams = {upstreams}\n"
+        )
+        top_upstreams.append(_quote_space_sep(f"{path}={source_remote}:"))
+
+    body = "".join(sections)
+    tail = (
+        f"[{library_remote}]\n"
+        "type = combine\n"
+        f"upstreams = {' '.join(top_upstreams)}\n"
+        "description = ArchiveMediaDrive virtual library\n"
+    )
+    return body, tail
 
 
 def render_config(
@@ -36,18 +72,13 @@ def render_config(
     library_remote: str,
     ia_remote: str = "archive-media-drive-ia",
 ) -> str:
-    upstreams = combine_upstreams(resolved, ia_remote)
-    if not upstreams:
-        raise RcloneError("the resolved catalog is empty")
-    encoded = " ".join(_quote_space_sep(item) for item in upstreams)
+    body, tail = _source_sections(resolved, library_remote=library_remote, ia_remote=ia_remote)
     return (
         f"[{ia_remote}]\n"
         "type = internetarchive\n"
         "description = Internet Archive data plane managed by ArchiveMediaDrive\n\n"
-        f"[{library_remote}]\n"
-        "type = combine\n"
-        f"upstreams = {encoded}\n"
-        "description = ArchiveMediaDrive virtual library\n"
+        f"{body}"
+        f"{tail}"
     )
 
 

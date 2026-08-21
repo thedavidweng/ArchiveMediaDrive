@@ -9,6 +9,7 @@ public sealed class RcloneEnvironment
 {
     public const string RemoteName = "archive-media-drive-ia";
     public const string LibraryRemoteName = "archive-media-drive-library";
+    public const int LibraryItemLimit = 200;
 
     private readonly IRcloneRuntimeManager _runtimeManager;
     private readonly string _configDirectory;
@@ -96,7 +97,8 @@ public sealed class RcloneEnvironment
         sb.AppendLine("type = internetarchive");
         sb.AppendLine();
 
-        var upstreams = new List<(string SortKey, string Line)>();
+        var groups = new List<(string DirName, List<(string SourceId, string Identifier)> Items)>();
+        var groupIndex = new Dictionary<string, int>();
         var seen = new HashSet<string>();
 
         foreach (var source in sources.Where(s => s.Enabled))
@@ -116,27 +118,51 @@ public sealed class RcloneEnvironment
             }
 
             var dirName = SanitizeDirectoryName($"{source.Name}--{source.Id}");
+            if (!groupIndex.TryGetValue(dirName, out var index))
+            {
+                index = groups.Count;
+                groupIndex[dirName] = index;
+                groups.Add((dirName, new List<(string, string)>()));
+            }
+
             foreach (var identifier in identifiers)
             {
-                var virtualPath = $"{dirName}/{identifier}";
-                if (!seen.Add(virtualPath))
+                if (!seen.Add($"{dirName}/{identifier}"))
                     continue;
-                var sortKey = $"{source.Id}/{identifier}";
-                upstreams.Add((sortKey, $"\"{virtualPath}={RemoteName}:{identifier}\""));
+                groups[index].Items.Add((source.Id, identifier));
             }
         }
 
-        if (upstreams.Count == 0)
+        var upstreamCount = groups.Sum(g => g.Items.Count);
+        if (upstreamCount == 0)
             return false;
 
-        var ordered = upstreams
-            .OrderBy(u => u.SortKey, StringComparer.Ordinal)
-            .Select(u => u.Line)
-            .ToList();
+        if (upstreamCount > LibraryItemLimit)
+        {
+            throw new SourceContractException(
+                $"the resolved catalog has {upstreamCount} items; " +
+                $"the mounted library supports at most {LibraryItemLimit} items; " +
+                "use channel mode for larger catalogs");
+        }
+
+        for (var i = 0; i < groups.Count; i++)
+        {
+            var (dirName, items) = groups[i];
+            var sourceRemote = $"{LibraryRemoteName}-src-{i}";
+            var orderedIdentifiers = items
+                .OrderBy(item => item.SourceId, StringComparer.Ordinal)
+                .ThenBy(item => item.Identifier, StringComparer.Ordinal)
+                .Select(item => $"\"{item.Identifier}={RemoteName}:{item.Identifier}\"");
+            sb.AppendLine($"[{sourceRemote}]");
+            sb.AppendLine("type = combine");
+            sb.AppendLine($"upstreams = {string.Join(" ", orderedIdentifiers)}");
+            sb.AppendLine();
+        }
 
         sb.AppendLine($"[{LibraryRemoteName}]");
         sb.AppendLine("type = combine");
-        sb.AppendLine($"upstreams = {string.Join(" ", ordered)}");
+        sb.AppendLine(
+            $"upstreams = {string.Join(" ", groups.Select((g, i) => $"\"{g.DirName}={LibraryRemoteName}-src-{i}:\""))}");
 
         var candidate = ConfigPath + ".new";
         var previous = ConfigPath + ".previous";
@@ -172,7 +198,7 @@ public sealed class RcloneEnvironment
             return false;
 
         return await RunRcloneCheckAsync(rcloneBinary, $"config show --config \"{configPath}\"", cancellationToken) &&
-               await RunRcloneCheckAsync(rcloneBinary, $"lsf \"{LibraryRemoteName}:\" --config \"{configPath}\" --max-depth 0", cancellationToken);
+               await RunRcloneCheckAsync(rcloneBinary, $"lsf \"{LibraryRemoteName}:\" --config \"{configPath}\" --max-depth 1", cancellationToken);
     }
 
     private static async Task<bool> RunRcloneCheckAsync(string rcloneBinary, string arguments, CancellationToken cancellationToken)
