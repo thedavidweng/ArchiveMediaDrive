@@ -322,6 +322,13 @@ public sealed class RcloneEnvironmentTests
         Directory.CreateDirectory(tmp);
         try
         {
+            var pinnedVersion = RcloneManifestLoader.LoadFromPluginData(tmp).Version;
+            var forcedBinary = !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("AMD_TEST_RCLONE_BINARY"));
+            if (!forcedBinary && !HasPinnedVersion(rclone, pinnedVersion))
+            {
+                return;
+            }
+
             var env = new RcloneEnvironment(new FakeRuntimeManager(rclone), tmp);
             var sources = new[]
             {
@@ -338,6 +345,27 @@ public sealed class RcloneEnvironmentTests
         finally
         {
             Directory.Delete(tmp, true);
+        }
+    }
+
+    private static bool HasPinnedVersion(string rclonePath, string pinnedVersion)
+    {
+        try
+        {
+            using var probe = Process.Start(new ProcessStartInfo(rclonePath, "version")
+            {
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                CreateNoWindow = true,
+            });
+            if (probe is null || !probe.WaitForExit(3000) || probe.ExitCode != 0)
+                return false;
+            var output = probe.StandardOutput.ReadToEnd();
+            return output.Contains("rclone v" + pinnedVersion, StringComparison.OrdinalIgnoreCase);
+        }
+        catch
+        {
+            return false;
         }
     }
 

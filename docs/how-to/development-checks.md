@@ -54,24 +54,41 @@ OK
 
 ## .NET test suites
 
+`global.json` pins the SDK to the 10.0 series and rolls forward across feature bands, so any installed .NET 10 SDK resolves.
+
 ```bash
 make test-dotnet
 ```
 
-Two environment facts to know first:
+One Core contract test executes the **real rclone on your `PATH`** against a generated combine configuration. It runs only when that rclone matches the version pinned in [`runtime/rclone/manifest.json`](../../runtime/rclone/manifest.json) — currently v1.74.4 — and skips silently otherwise, so an older local rclone never fails the suite. To exercise it on purpose, point `AMD_TEST_RCLONE_BINARY` at a matching binary:
 
-- `global.json` pins the .NET SDK (currently **10.0.302**). A different installed SDK fails resolution with a "Requested SDK version" error. Install the pinned version side by side with [dotnet-install](https://learn.microsoft.com/en-us/dotnet/core/install/how-to-install-sdk) or your package manager.
-- One Core contract test executes the **real rclone on your `PATH`** against a generated combine configuration. Use the rclone version pinned in [`runtime/rclone/manifest.json`](../../runtime/rclone/manifest.json) — currently v1.74.4 — or that test can fail on older rclone builds even though the code is correct.
-
-With the pinned rclone on `PATH`, the suites end with:
-
-```text
-Passed!  - Failed:     0, Passed:     6, Skipped:     0, Total:     6, Duration: 34 ms - ArchiveMediaDrive.Emby.Tests.dll (net10.0)
-Passed!  - Failed:     0, Passed:     5, Skipped:     0, Total:     5, Duration: 38 ms - ArchiveMediaDrive.Jellyfin.Tests.dll (net10.0)
-Passed!  - Failed:     0, Passed:    90, Skipped:     0, Total:    90, Duration: 4 s - ArchiveMediaDrive.Core.Tests.dll (net10.0)
+```bash
+AMD_TEST_RCLONE_BINARY=/path/to/rclone-v1.74.4 make test-dotnet
 ```
 
-Run everything at once with `make test`.
+## Run everything at once
+
+```bash
+make test
+```
+
+A full run ends with every suite green. This capture used macOS, SDK 10.0.400, and rclone 1.71.1 on `PATH`, so the Core integration test skipped on its version check:
+
+```text
+Passed!  - Failed:     0, Passed:     6, Skipped:     0, Total:     6, Duration: 35 ms - ArchiveMediaDrive.Emby.Tests.dll (net10.0)
+Passed!  - Failed:     0, Passed:     5, Skipped:     0, Total:     5, Duration: 67 ms - ArchiveMediaDrive.Jellyfin.Tests.dll (net10.0)
+Passed!  - Failed:     0, Passed:    90, Skipped:     0, Total:    90, Duration: 4 s - ArchiveMediaDrive.Core.Tests.dll (net10.0)
+
+----------------------------------------------------------------------
+Ran 20 tests in 0.228s
+
+OK
+
+----------------------------------------------------------------------
+Ran 22 tests in 0.016s
+
+OK
+```
 
 ## Package the Kodi release artifacts
 
