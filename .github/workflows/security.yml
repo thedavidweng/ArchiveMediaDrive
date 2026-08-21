@@ -75,7 +75,7 @@ jobs:
         run: dotnet restore --locked-mode ArchiveMediaDrive.sln
       - name: List vulnerable packages
         run: |
-          dotnet list package --vulnerable --include-transitive --format table > vulns.txt
+          dotnet list package --vulnerable --include-transitive > vulns.txt
           cat vulns.txt
           if grep -iE "has the following vulnerable packages|vulnerabilities found" vulns.txt; then
             exit 1
@@ -112,7 +112,7 @@ jobs:
         uses: trufflesecurity/trufflehog@bcfcf73aaf4759d4dadc2783177c245a02792318 # v3.97.0
         with:
           path: ./
-          base: ${{ github.event.repository.default_branch }}
+          base: ""
           head: HEAD
           extra_args: --only-verified
 
@@ -136,4 +136,4 @@ jobs:
           scancode --license --summary --json-pp scancode-results.json \
             --processes 2 --timeout 60 --ignore "*.zip" --ignore "*.nupkg" \
             --ignore "*.jpg" --ignore "*.png" --ignore "*.ico" .
-          test -f scancode-results.json && cat scancode-results.json | head -100
+          test -f scancode-results.json && head -100 scancode-results.json
