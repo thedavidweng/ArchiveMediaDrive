@@ -1,6 +1,6 @@
-# Emby guide
+# How to install and use ArchiveMediaDrive in Emby
 
-ArchiveMediaDrive for Emby adds Internet Archive sources to your Emby server.
+Use this when you want Internet Archive sources on your Emby server — as a native channel by default, or as a standard library for clients that need one.
 
 ## Requirements
 
@@ -18,7 +18,7 @@ On first use, the plugin downloads a pinned official rclone build, verifies its 
 ## Configure
 
 1. Open the Emby dashboard and go to **Plugins → ArchiveMediaDrive**.
-2. Add your Sources in the Sources list. See the [source guide](sources.md) for fields and examples.
+2. Add your Sources in the Sources list. See the [Source reference](../reference/sources.md) for fields and examples.
 3. Keep **Channel enabled** selected for normal use.
 4. Save the settings.
 
@@ -30,6 +30,8 @@ The plugin page has these options:
 | Managed Library enabled | Mount Internet Archive content as a read-only library through rclone. |
 | Managed Library name | Display name of the managed library folder. Default: `Internet Archive`. |
 | Sources | The Internet Archive Sources to browse and mount. |
+
+Saved Sources resolve on their refresh interval; their items appear under the channel in the Channels area.
 
 ## Channel mode
 
@@ -54,18 +56,26 @@ Then:
 2. Set the library display name if needed.
 3. Save the settings.
 
-The plugin starts one read-only rclone mount as a child of Emby, registers the mount root as a library path, and stops the mount during shutdown or uninstall.
+The plugin starts one read-only rclone mount as a child of Emby, registers the mount root as a library path, and stops the mount during shutdown or uninstall. The reason for the 200-item envelope: [ADR 0006](../adr/0006-mounted-library-catalog-envelope.md).
 
 ## Troubleshoot
 
 | Problem | What to do |
 |---|---|
-| A Source shows no content | Check the kind and value against the [source guide](sources.md). Public access works without an account. |
+| A Source shows no content | Check the kind and value against the [Source reference](../reference/sources.md). Public access works without an account. |
 | Runtime or rclone errors | Check server logs. The rclone download is checksum verified; failures are usually network related. |
 | Managed Library will not start | Install FUSE or WinFsp first. Confirm mount permissions for the Emby service user. |
 | Catalog rejected above 200 items | Reduce resolved items, or keep those Sources in Channel mode only. |
 | Stale content | Wait for the refresh interval, or re-save the Source to refresh now. |
 
+To check an Identifier or search expression outside Emby, see [verify a Source](verify-a-source.md).
+
 ## Uninstall
 
 Remove the plugin in the dashboard and restart Emby. The managed mount stops with the uninstall. Media on Archive.org is not touched.
+
+## Where next
+
+- All kinds, fields, and limits: [Source reference](../reference/sources.md).
+- Same Sources inside Kodi: [Kodi guide](kodi.md); inside Jellyfin: [Jellyfin guide](jellyfin.md).
+- What the plugin runs and stores: [Operations](../OPERATIONS.md) and [Architecture](../ARCHITECTURE.md).

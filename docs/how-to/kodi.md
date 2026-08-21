@@ -1,6 +1,6 @@
-# Kodi guide
+# How to install and use ArchiveMediaDrive in Kodi
 
-ArchiveMediaDrive for Kodi adds Internet Archive items, Collections, Favorites, and searches as Kodi folders.
+Use this when you want Internet Archive items, Collections, Favorites, and searches as browsable folders inside Kodi itself.
 
 ## Requirements
 
@@ -13,6 +13,8 @@ ArchiveMediaDrive for Kodi adds Internet Archive items, Collections, Favorites, 
 2. In Kodi, open **Add-ons → Install from zip file** and select the repository ZIP.
 3. Open **Add-ons → Install from repository → ArchiveMediaDrive → Video add-ons**.
 4. Select **ArchiveMediaDrive** and install it.
+
+The add-on now appears under **Video add-ons**.
 
 ## Add a Source
 
@@ -31,7 +33,7 @@ Sources are managed inside the add-on. You do not edit settings files.
    - search: an Internet Archive search expression.
 8. Accept the refresh interval, or enter your own in minutes. The default is 360.
 
-The new Source appears on the add-on start page.
+The new Source appears on the add-on start page. Field rules and more value forms are in the [Source reference](../reference/sources.md).
 
 ## Manage Sources
 
@@ -60,6 +62,14 @@ Files that Kodi cannot play stay visible in the list. ArchiveMediaDrive does not
 | Private items are missing | Private items need credentials. Public access is the default. |
 | Stale content | Use **Manage sources → Refresh** on the affected Source. |
 
+To check an Identifier or search expression outside Kodi, see [verify a Source](verify-a-source.md).
+
 ## Uninstall
 
 Open **Add-ons → My add-ons → Video add-ons → ArchiveMediaDrive** and select **Uninstall**. This removes the add-on data from the Kodi profile. Media on Archive.org is not touched.
+
+## Where next
+
+- All kinds, fields, and limits: [Source reference](../reference/sources.md).
+- Prefer a media server? [Jellyfin](jellyfin.md) or [Emby](emby.md) offer the same Sources through Channel mode.
+- Why the add-on contains no rclone and no compiled code: [Architecture](../ARCHITECTURE.md).

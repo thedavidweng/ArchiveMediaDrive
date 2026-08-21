@@ -1,6 +1,6 @@
-# Jellyfin guide
+# How to install and use ArchiveMediaDrive in Jellyfin
 
-ArchiveMediaDrive for Jellyfin adds Internet Archive sources to your Jellyfin server.
+Use this when you want Internet Archive sources on your Jellyfin server — as a native Channel by default, or as a standard library for clients that need one.
 
 ## Requirements
 
@@ -20,7 +20,7 @@ On first use, the plugin downloads a pinned official rclone build, verifies its 
 ## Configure
 
 1. Open the dashboard and go to **Plugins → ArchiveMediaDrive**.
-2. Enter your Sources as a JSON array in the **Sources JSON** field. See the [source guide](sources.md) for the format.
+2. Enter your Sources as a JSON array in the **Sources JSON** field. See the [Source reference](../reference/sources.md) for the format.
 3. Keep **Channel mode enabled** selected for normal use.
 4. Select **Save**.
 
@@ -38,6 +38,8 @@ Example Sources JSON:
   }
 ]
 ```
+
+The Sources resolve after saving; their items appear under the channel in the web app and compatible clients.
 
 ## Channel mode
 
@@ -62,7 +64,7 @@ Then:
 2. Set the library display name. The default is `Internet Archive`.
 3. Select **Save**.
 
-The plugin starts one read-only rclone mount as a child of Jellyfin, registers the mount root as a library path, and refreshes the library after Source changes. The mount stops when the server stops or when you disable the mode.
+The plugin starts one read-only rclone mount as a child of Jellyfin, registers the mount root as a library path, and refreshes the library after Source changes. The mount stops when the server stops or when you disable the mode. The reason for the 200-item envelope: [ADR 0006](../adr/0006-mounted-library-catalog-envelope.md).
 
 ## Check status
 
@@ -87,6 +89,14 @@ Select **Download diagnostics** to get a diagnostics file for problem reports.
 | Catalog rejected above 200 items | Reduce resolved items or switch those Sources back to Channel mode only. |
 | Stale content | Wait for the refresh interval, or edit and re-save the Sources JSON to trigger a refresh. |
 
+To check an Identifier or search expression outside Jellyfin, see [verify a Source](verify-a-source.md).
+
 ## Uninstall
 
 Remove the plugin in **Plugins** and restart Jellyfin. The managed mount stops with the uninstall. Media on Archive.org is not touched.
+
+## Where next
+
+- All kinds, fields, and limits: [Source reference](../reference/sources.md).
+- Same Sources inside Kodi: [Kodi guide](kodi.md); inside Emby: [Emby guide](emby.md).
+- What the plugin runs and stores: [Operations](../OPERATIONS.md) and [Architecture](../ARCHITECTURE.md).

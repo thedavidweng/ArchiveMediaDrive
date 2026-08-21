@@ -56,12 +56,11 @@ Modern Plex does not provide a supported content-provider plugin path. Plex remo
 
 ## Installation model
 
-Published packages install through each host's native extension workflow. Step-by-step guides live under [`docs/guides/`](docs/guides):
+Published packages install through each host's native extension workflow. Step-by-step guides live under [`docs/how-to/`](docs/how-to):
 
-- [Kodi guide](docs/guides/kodi.md)
-- [Jellyfin guide](docs/guides/jellyfin.md)
-- [Emby guide](docs/guides/emby.md)
-- [Source guide](docs/guides/sources.md)
+- [Kodi guide](docs/how-to/kodi.md)
+- [Jellyfin guide](docs/how-to/jellyfin.md)
+- [Emby guide](docs/how-to/emby.md)
 
 ### Kodi
 
@@ -203,14 +202,26 @@ The reference CLI under `tools/reference-cli` remains a development harness for 
 
 ## Documentation
 
-User guides:
+Documentation follows the [Diátaxis](https://diataxis.fr/) structure: tutorials for learning, how-to guides for tasks, reference for lookup, explanation for understanding.
 
-- [Source guide](docs/guides/sources.md) — Source kinds, fields, and examples;
-- [Kodi guide](docs/guides/kodi.md) — install, add Sources, browse and play;
-- [Jellyfin guide](docs/guides/jellyfin.md) — install, Channel mode, Managed Library mode;
-- [Emby guide](docs/guides/emby.md) — install, Channel mode, Managed Library mode.
+Tutorials — learn by doing:
 
-Design and operations:
+- [Your first virtual drive](docs/tutorials/first-virtual-drive.md) — turn one Archive.org item into a browsable tree with the reference CLI.
+
+How-to guides — solve a task:
+
+- [Kodi](docs/how-to/kodi.md) — install, add Sources, browse and play;
+- [Jellyfin](docs/how-to/jellyfin.md) — install, Channel mode, Managed Library mode;
+- [Emby](docs/how-to/emby.md) — install, Channel mode, Managed Library mode;
+- [Verify a Source](docs/how-to/verify-a-source.md) — check an Identifier, Collection, Favorites owner, or search expression before adding it to a host;
+- [Run the development checks](docs/how-to/development-checks.md) — verify-tree, test suites, and Kodi packaging locally.
+
+Reference — look it up:
+
+- [Sources](docs/reference/sources.md) — kinds, fields, limits, and examples;
+- [Reference CLI (`amd`)](docs/reference/reference-cli.md) — commands, state files, config format, exit codes.
+
+Explanation — understand the design:
 
 - [Architecture](docs/ARCHITECTURE.md) — runtime boundaries and ownership;
 - [Platform support](docs/PLATFORM_SUPPORT.md) — supported hosts and constraints;
@@ -220,6 +231,8 @@ Design and operations:
 - [Threat model](docs/threat-model.md) — security assumptions and surfaces;
 - [Architecture decisions](docs/adr) — durable decisions behind the design;
 - [Glossary](CONTEXT.md) — project terms and the words to avoid.
+
+Command output blocks in these documents were captured from real runs (macOS, Python 3.14, rclone 1.71.1, `ia` 5.9.0 unless a block says otherwise). Blocks that are illustrative rather than captured are labeled as such.
 
 ## License
 

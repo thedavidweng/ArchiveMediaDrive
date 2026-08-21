@@ -9,4 +9,4 @@ ArchiveMediaDrive is plugin-first. Changes must preserve these boundaries:
 - Plex remains unsupported under the retired plugin framework;
 - general rclone or Internet Archive defects should be proposed upstream.
 
-Run contract tests, adapter tests, package-policy checks, and the relevant host integration suite before opening a pull request.
+Run contract tests, adapter tests, package-policy checks, and the relevant host integration suite before opening a pull request. See [How to run the development checks](docs/how-to/development-checks.md).
