@@ -1,5 +1,7 @@
 # ArchiveMediaDrive
 
+[![CI](https://github.com/thedavidweng/ArchiveMediaDrive/actions/workflows/ci.yml/badge.svg)](https://github.com/thedavidweng/ArchiveMediaDrive/actions/workflows/ci.yml)
+
 **Use Internet Archive as a native media source inside Kodi, Jellyfin, and Emby.**
 
 ArchiveMediaDrive turns Internet Archive items, Collections, Favorites, and saved searches into provider-style folders inside media applications. Users install the adapter for the media server or player they already run, add an Internet Archive source, and browse the result from that application's normal interface.
@@ -54,7 +56,12 @@ Modern Plex does not provide a supported content-provider plugin path. Plex remo
 
 ## Installation model
 
-Published packages install through each host's native extension workflow.
+Published packages install through each host's native extension workflow. Step-by-step guides live under [`docs/guides/`](docs/guides):
+
+- [Kodi guide](docs/guides/kodi.md)
+- [Jellyfin guide](docs/guides/jellyfin.md)
+- [Emby guide](docs/guides/emby.md)
+- [Source guide](docs/guides/sources.md)
 
 ### Kodi
 
@@ -193,6 +200,26 @@ The reference CLI under `tools/reference-cli` remains a development harness for 
 - Jellyfin: ArchiveMediaDrive plugin repository manifest plus GitHub Release ZIPs.
 - Emby: beta DLL/ZIP releases followed by Emby Catalog submission.
 - Plex: no provider package until Plex exposes a supported content-source extension API.
+
+## Documentation
+
+User guides:
+
+- [Source guide](docs/guides/sources.md) — Source kinds, fields, and examples;
+- [Kodi guide](docs/guides/kodi.md) — install, add Sources, browse and play;
+- [Jellyfin guide](docs/guides/jellyfin.md) — install, Channel mode, Managed Library mode;
+- [Emby guide](docs/guides/emby.md) — install, Channel mode, Managed Library mode.
+
+Design and operations:
+
+- [Architecture](docs/ARCHITECTURE.md) — runtime boundaries and ownership;
+- [Platform support](docs/PLATFORM_SUPPORT.md) — supported hosts and constraints;
+- [Operations](docs/OPERATIONS.md) — where state lives and how lifecycle works;
+- [Plugin distribution](docs/PLUGIN_DISTRIBUTION.md) — release artifacts and versioning;
+- [Test matrix](docs/TEST_MATRIX.md) — what is tested on which hosts;
+- [Threat model](docs/threat-model.md) — security assumptions and surfaces;
+- [Architecture decisions](docs/adr) — durable decisions behind the design;
+- [Glossary](CONTEXT.md) — project terms and the words to avoid.
 
 ## License
 
