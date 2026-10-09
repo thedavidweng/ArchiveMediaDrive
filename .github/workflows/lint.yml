@@ -28,10 +28,26 @@ jobs:
 
   workflow-lint:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 5
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: raven-actions/actionlint@3d39aea434753780c3b3d4a1a31c854b4dbf49d7 # v2.2.0
+        with:
+          persist-credentials: false
+      - name: Install jactionlint
+        uses: jdx/mise-action@2d8d4cafcbd33be2ea37d2b6f5ad595363d1f1ca # v5.1.1
+        with:
+          cache: false
+          mise_toml: |
+            [tools]
+            jactionlint = "1.8.2"
+      - name: Problem matcher
+        run: echo "::add-matcher::.github/jactionlint-matcher.json"
+      - name: jactionlint
+        run: |
+          jactionlint -version
+          jactionlint
 
   spell:
     runs-on: ubuntu-latest
