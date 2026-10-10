@@ -2,13 +2,24 @@ name: CI
 
 on:
   push:
+    branches: [main]
   pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: false
 
 jobs:
   contracts:
+    timeout-minutes: 60
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.12'
@@ -28,12 +39,15 @@ jobs:
           ! find plugins/kodi -type f -not -path '*/__pycache__/*' \( -name '*.so' -o -name '*.dll' -o -name '*.exe' -o -name '*.pyo' -o -name '*.pyc' \) | grep .
 
   reference-cli:
+    timeout-minutes: 60
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: tools/reference-cli
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.12'
@@ -41,24 +55,30 @@ jobs:
       - run: python -m unittest discover -s tests -v
 
   kodi:
+    timeout-minutes: 60
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: plugins/kodi
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.12'
       - run: python -m unittest discover -s tests -v
 
   kodi-vendor:
+    timeout-minutes: 60
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: plugins/kodi
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.12'
@@ -66,6 +86,7 @@ jobs:
       - run: python test_vendor_smoke.py
 
   kodi-addon-checker:
+    timeout-minutes: 60
     runs-on: ubuntu-latest
     needs: [kodi, kodi-vendor]
     defaults:
@@ -73,6 +94,8 @@ jobs:
         working-directory: plugins/kodi
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.12'
@@ -83,39 +106,56 @@ jobs:
       - run: kodi-addon-checker --branch omega --skip-dependency-checks repo/repository.archivemediadrive
 
   dotnet-core:
+    timeout-minutes: 60
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           dotnet-version: '10.0.x'
       - run: dotnet test shared/dotnet/ArchiveMediaDrive.Core.Tests/ArchiveMediaDrive.Core.Tests.csproj --configuration Release
 
   dotnet-jellyfin:
+    timeout-minutes: 60
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           dotnet-version: '10.0.x'
       - run: dotnet test plugins/jellyfin/ArchiveMediaDrive.Jellyfin.Tests/ArchiveMediaDrive.Jellyfin.Tests.csproj --configuration Release
 
   dotnet-build:
+    timeout-minutes: 60
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           dotnet-version: '10.0.x'
       - run: dotnet build plugins/emby/ArchiveMediaDrive.Emby/ArchiveMediaDrive.Emby.csproj --configuration Release
 
   rclone-integration:
+    timeout-minutes: 60
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           dotnet-version: '10.0.x'
       - name: Install rclone
-        run: curl https://rclone.org/install.sh | sudo bash
+        run: |
+          curl --fail --location --output "$RUNNER_TEMP/rclone-v1.75.2-linux-amd64.zip" https://github.com/rclone/rclone/releases/download/v1.75.2/rclone-v1.75.2-linux-amd64.zip
+          echo "349ac8fba6ff65d6247043f1750cdcb518ec5d500ef91463a10d37c0ccdf3702  $RUNNER_TEMP/rclone-v1.75.2-linux-amd64.zip" | sha256sum --check
+          unzip -q "$RUNNER_TEMP/rclone-v1.75.2-linux-amd64.zip" -d "$RUNNER_TEMP/rclone"
+          sudo install "$RUNNER_TEMP/rclone/rclone-v1.75.2-linux-amd64/rclone" /usr/local/bin/rclone
+        shell: bash
       - run: dotnet test shared/dotnet/ArchiveMediaDrive.Core.Tests/ArchiveMediaDrive.Core.Tests.csproj --configuration Release --filter "Category=Integration"
