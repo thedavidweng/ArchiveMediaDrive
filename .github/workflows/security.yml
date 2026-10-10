@@ -2,12 +2,18 @@ name: Security
 
 on:
   push:
+    branches: [main]
   pull_request:
 
 permissions: {}
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   codeql:
+    timeout-minutes: 60
     name: CodeQL
     runs-on: ubuntu-latest
     permissions:
@@ -22,6 +28,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          persist-credentials: false
           fetch-depth: 0
 
       - name: Setup .NET
@@ -31,7 +38,7 @@ jobs:
           dotnet-version: '10.0.x'
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
+        uses: github/codeql-action/init@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
         with:
           languages: ${{ matrix.language }}
 
@@ -40,11 +47,12 @@ jobs:
         run: dotnet build ArchiveMediaDrive.sln --configuration Release
 
       - name: Perform CodeQL analysis
-        uses: github/codeql-action/analyze@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
+        uses: github/codeql-action/analyze@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
         with:
           category: "/language:${{ matrix.language }}"
 
   dependency-review:
+    timeout-minutes: 60
     name: Dependency review
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
@@ -54,12 +62,15 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Review dependencies
         uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
         with:
           comment-summary-in-pr: on-failure
 
   dotnet-vulnerable:
+    timeout-minutes: 60
     name: .NET vulnerable packages
     runs-on: ubuntu-latest
     permissions:
@@ -67,6 +78,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Setup .NET
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
@@ -82,6 +95,7 @@ jobs:
           fi
 
   python-audit:
+    timeout-minutes: 60
     name: Python dependency audit
     runs-on: ubuntu-latest
     permissions:
@@ -89,6 +103,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Setup Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
@@ -99,6 +115,7 @@ jobs:
         run: pip-audit tools/reference-cli
 
   secret-scan:
+    timeout-minutes: 60
     name: Secret scan
     runs-on: ubuntu-latest
     permissions:
@@ -107,9 +124,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          persist-credentials: false
           fetch-depth: 0
       - name: TruffleHog
-        uses: trufflesecurity/trufflehog@4dd8831c5f12599465d4d45c3c447b4018a34c85 # v3.97.9
+        uses: trufflesecurity/trufflehog@e76dff8a7e57d6df0c60ad8cbf5d5cba505a8fc9 # v3.99.2
         with:
           path: ./
           base: ""
@@ -117,6 +135,7 @@ jobs:
           extra_args: --only-verified
 
   license-scan:
+    timeout-minutes: 60
     name: License scan
     runs-on: ubuntu-latest
     permissions:
@@ -124,6 +143,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Setup Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
