@@ -205,7 +205,7 @@ jobs:
       - name: Create GitHub Release
         # v3.0.3 retained for coordinated uploads/release metadata; no shell execution.
         # v3.0.3; required create/update release semantics.
-        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # zizmor: ignore[superfluous-actions]
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3 # zizmor: ignore[superfluous-actions]
         with:
           files: dist/*
           generate_release_notes: true
