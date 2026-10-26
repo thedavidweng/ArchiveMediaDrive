@@ -4,7 +4,7 @@ Use this when you want Internet Archive sources on your Jellyfin server — as a
 
 ## Requirements
 
-- Jellyfin Server 10.11.11 or compatible.
+- Jellyfin Server 12.3.0 or compatible with its plugin API.
 - Channel mode: no extra software.
 - Managed Library mode: FUSE on Linux, WinFsp on Windows, or macOS mount support. Containers need matching privileges.
 
