@@ -101,7 +101,7 @@ make verify-tree
 make test
 ```
 
-The server adapters use .NET SDK 10.0. Jellyfin is pinned to Server/API 10.11.11; Emby compiles against `MediaBrowser.Server.Core` 4.9.1.90 and is tested against Server 4.9.3.0 plus 4.10.0.11-beta.
+The server adapters use .NET SDK 10.0. Jellyfin targets Server/API 12.3.0 and .NET 10; Emby compiles against `MediaBrowser.Server.Core` 4.9.1.90 and is tested against Server 4.9.3.0 plus 4.10.0.11-beta.
 
 Release ZIPs for Jellyfin and Emby include the plugin DLL, the shared Core DLL, and the pinned rclone runtime manifest. The Kodi release ZIP is produced by `package_release.py` and includes vendored pure-Python dependencies.
 

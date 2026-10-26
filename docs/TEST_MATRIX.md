@@ -22,7 +22,7 @@
 
 ## Jellyfin Channel
 
-- Jellyfin Server 10.11.11 and API packages 10.11.11;
+- Jellyfin Server 12.3.0 and API packages 12.3.0;
 - Linux x64/arm64, Windows x64, macOS arm64 where Jellyfin supports it;
 - Jellyfin Web plus one Apple and one television client;
 - Channel listing, direct play, transcode fallback, cancellation, pagination, permissions, refresh;
