@@ -40,6 +40,9 @@ jobs:
 
   reference-cli:
     timeout-minutes: 60
+    strategy:
+      matrix:
+        python: ['3.11', '3.15']
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -50,12 +53,15 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
-          python-version: '3.15'
+          python-version: ${{ matrix.python }}
       - run: python -m pip install -e .
       - run: python -m unittest discover -s tests -v
 
   kodi:
     timeout-minutes: 60
+    strategy:
+      matrix:
+        python: ['3.11', '3.15']
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -66,11 +72,14 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
-          python-version: '3.15'
+          python-version: ${{ matrix.python }}
       - run: python -m unittest discover -s tests -v
 
   kodi-vendor:
     timeout-minutes: 60
+    strategy:
+      matrix:
+        python: ['3.11', '3.15']
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -81,7 +90,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
-          python-version: '3.15'
+          python-version: ${{ matrix.python }}
       - run: python build_vendor.py
       - run: python test_vendor_smoke.py
 
