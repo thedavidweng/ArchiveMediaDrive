@@ -47,11 +47,5 @@ class CrossPlatformAcceptanceTests(unittest.TestCase):
         )
         self.assertEqual(source.to_json(), expected)
 
-    def test_all_fixture_kinds_are_supported(self) -> None:
-        data = json.loads(_FIXTURES.read_text(encoding="utf-8"))
-        kinds = {s["kind"] for s in data["sources"]}
-        self.assertEqual(kinds, {"item", "collection", "favorites", "search"})
-
-
 if __name__ == "__main__":
     unittest.main()

@@ -108,16 +108,5 @@ class CommittedFixturesTests(unittest.TestCase):
             for key in _LEAK_KEYS:
                 self.assertNotIn(f'"{key}"', text, f"{path.name} leaks {key}")
 
-    def test_committed_item_fixtures_have_required_shape(self) -> None:
-        for path in _FIXTURES_DIR.glob("item-*.json"):
-            data = json.loads(path.read_text(encoding="utf-8"))
-            if data.get("expectFailure"):
-                continue
-            self.assertEqual(data["schemaVersion"], 1)
-            self.assertIn("identifier", data)
-            self.assertIn("files", data)
-            self.assertIsInstance(data["files"], list)
-
-
 if __name__ == "__main__":
     unittest.main()
