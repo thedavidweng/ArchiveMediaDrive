@@ -20,6 +20,8 @@ _ROOT_NOTICE = _HERE.parent.parent / "NOTICE"
 
 
 def _should_exclude(path: Path) -> bool:
+    if path.name == "METADATA" and path.parent.name.endswith(".dist-info"):
+        return False
     if any(part in _EXCLUDE_DIRS or part.endswith(".dist-info") for part in path.parts):
         return True
     return path.suffix.lower() in _EXCLUDE_SUFFIXES

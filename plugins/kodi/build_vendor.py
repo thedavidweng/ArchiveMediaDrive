@@ -2,7 +2,7 @@
 """Deterministically vendor pure-Python dependencies for the Kodi release ZIP.
 
 Pins hashes, downloads source archives, verifies SHA-256, installs from the
-verified local archives into a temporary directory, removes metadata and
+verified local archives into a temporary directory, removes unused metadata and
 bytecode, rejects compiled extensions, and copies source files into
 resources/lib/vendor.
 """
@@ -68,6 +68,8 @@ def _is_pure_python(path: Path) -> bool:
 
 def _should_strip(name: str) -> bool:
     parts = Path(name).parts
+    if len(parts) == 2 and parts[0].endswith(".dist-info") and parts[1] == "METADATA":
+        return False
     if "licenses" in parts:
         return False
     return any(part in _STRIP_DIRS or part.endswith(".dist-info") for part in parts)
