@@ -54,7 +54,7 @@ OK
 
 ## .NET test suites
 
-`global.json` pins the SDK to the 10.0 series and rolls forward across feature bands, so any installed .NET 10 SDK resolves.
+`global.json` pins SDK 10.0.403. It rolls forward to a newer 10.0 feature band.
 
 ```bash
 make test-dotnet
