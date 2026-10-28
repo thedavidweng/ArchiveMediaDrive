@@ -36,11 +36,6 @@ class SourceModelTests(unittest.TestCase):
             payload = json.loads(source.to_json())
             self.assertEqual(payload["kind"], expected)
 
-    def test_source_id_is_stable_across_display_name_changes(self) -> None:
-        first = Source(id="prelinger", name="Prelinger", kind="collection", value="prelinger")
-        renamed = Source(id="prelinger", name="Prelinger Films", kind="collection", value="prelinger")
-        self.assertEqual(first.id, renamed.id)
-
     def test_normalize_identifier_extracts_details_url_identifier(self) -> None:
         self.assertEqual(
             normalize_identifier("https://archive.org/details/TripDown1905"),

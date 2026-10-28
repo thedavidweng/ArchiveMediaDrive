@@ -34,7 +34,7 @@ The verbose run ends with:
 
 ```text
 ----------------------------------------------------------------------
-Ran 20 tests in 0.238s
+Ran 19 tests in 0.083s
 
 OK
 ```
@@ -47,7 +47,7 @@ make test-kodi
 
 ```text
 ----------------------------------------------------------------------
-Ran 22 tests in 0.014s
+Ran 20 tests in 0.011s
 
 OK
 ```
@@ -72,20 +72,20 @@ AMD_TEST_RCLONE_BINARY=/path/to/rclone-v1.74.4 make test-dotnet
 make test
 ```
 
-A full run ends with every suite green. This capture used macOS, SDK 10.0.400, and rclone 1.71.1 on `PATH`, so the Core integration test skipped on its version check:
+A full run ends with every suite green. This capture used macOS, SDK 10.0.403, and rclone 1.71.1 on `PATH`, so the Core integration test skipped on its version check:
 
 ```text
-Passed!  - Failed:     0, Passed:     6, Skipped:     0, Total:     6, Duration: 35 ms - ArchiveMediaDrive.Emby.Tests.dll (net10.0)
-Passed!  - Failed:     0, Passed:     5, Skipped:     0, Total:     5, Duration: 67 ms - ArchiveMediaDrive.Jellyfin.Tests.dll (net10.0)
-Passed!  - Failed:     0, Passed:    90, Skipped:     0, Total:    90, Duration: 4 s - ArchiveMediaDrive.Core.Tests.dll (net10.0)
+Passed!  - Failed:     0, Passed:     6, Skipped:     0, Total:     6, Duration: 31 ms - ArchiveMediaDrive.Emby.Tests.dll (net10.0)
+Passed!  - Failed:     0, Passed:     5, Skipped:     0, Total:     5, Duration: 116 ms - ArchiveMediaDrive.Jellyfin.Tests.dll (net10.0)
+Passed!  - Failed:     0, Passed:    86, Skipped:     0, Total:    86, Duration: 3 s - ArchiveMediaDrive.Core.Tests.dll (net10.0)
 
 ----------------------------------------------------------------------
-Ran 20 tests in 0.228s
+Ran 19 tests in 0.083s
 
 OK
 
 ----------------------------------------------------------------------
-Ran 22 tests in 0.016s
+Ran 20 tests in 0.011s
 
 OK
 ```
