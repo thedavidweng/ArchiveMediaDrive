@@ -129,15 +129,14 @@ def build() -> None:
         install_dir = tmp / "install"
         install_dir.mkdir(parents=True, exist_ok=True)
 
-        for archive in archives:
-            print(f"installing {archive.name} from verified local archive...")
-            subprocess.run(
-                [sys.executable, "-m", "pip", "install",
-                 "--no-deps",
-                 "--target", str(install_dir),
-                 str(archive)],
-                check=True,
-            )
+        print("installing from verified local archives...")
+        subprocess.run(
+            [sys.executable, "-m", "pip", "install",
+             "--no-deps",
+             "--target", str(install_dir),
+             *(str(archive) for archive in archives)],
+            check=True,
+        )
 
         for src in install_dir.rglob("*"):
             if src.is_file() and _is_pure_python(src) and not _should_strip(str(src.relative_to(install_dir))):
