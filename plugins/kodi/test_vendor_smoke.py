@@ -57,6 +57,23 @@ def main() -> int:
             return 1
 
         version = result.stdout.strip()
+        ca_check = subprocess.run(
+            [sys.executable, "-c",
+             f"import sys; sys.path.insert(0, r'{vendor_dir}'); "
+             "import certifi, ssl; "
+             "roots = ssl.create_default_context(cafile=certifi.where()).get_ca_certs()\n"
+             "if not roots:\n"
+             "    raise SystemExit('bundled CA store is empty')\n"
+             "if any(value == 'emSign ECC Root CA - G3' "
+             "for cert in roots for rdn in cert['subject'] for key, value in rdn "
+             "if key == 'commonName'):\n"
+             "    raise SystemExit('bundled CA store contains the affected root')"],
+            capture_output=True, text=True,
+        )
+        if ca_check.returncode != 0:
+            print(f"bundled CA check failed: {ca_check.stderr}", file=sys.stderr)
+            return 1
+
         print(f"vendor smoke test passed: internetarchive {version} imported from ZIP")
         return 0
 
