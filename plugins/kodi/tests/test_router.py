@@ -72,7 +72,7 @@ class RouterTests(unittest.TestCase):
         ]
         self._run("root", sources=sources)
 
-        self._xbmcplugin.endOfDirectory.assert_called_once()
+        self._xbmcplugin.endOfDirectory.assert_called_once_with(0, cacheToDisc=False)
         calls = self._xbmcplugin.addDirectoryItem.call_args_list
         self.assertEqual(len(calls), 3)
         labels = [c.args[2].label for c in calls]

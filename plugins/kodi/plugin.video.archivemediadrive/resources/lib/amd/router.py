@@ -235,7 +235,7 @@ def _render_root(handle, addon, xbmcgui, xbmcplugin) -> None:
 
     item = xbmcgui.ListItem(label="Manage sources")
     xbmcplugin.addDirectoryItem(handle, build_plugin_url("settings"), item, True)
-    xbmcplugin.endOfDirectory(handle)
+    xbmcplugin.endOfDirectory(handle, cacheToDisc=False)
 
 
 def _render_source(handle, params, addon, xbmcgui, xbmcplugin, ia_client) -> None:
