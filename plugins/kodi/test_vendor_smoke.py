@@ -48,8 +48,13 @@ def main() -> int:
 
         result = subprocess.run(
             [sys.executable, "-c",
-             f"import sys; sys.path.insert(0, r'{vendor_dir}'); "
-             "import internetarchive; print(internetarchive.__version__)"],
+             "import pathlib, ssl, sys; "
+             f"vendor = pathlib.Path({str(vendor_dir)!r}); "
+             "sys.path.insert(0, str(vendor)); "
+             "import certifi, internetarchive; "
+             "assert pathlib.Path(certifi.__file__).is_relative_to(vendor); "
+             "ssl.create_default_context(cafile=certifi.where()); "
+             "print(internetarchive.__version__)"],
             capture_output=True, text=True,
         )
         if result.returncode != 0:
