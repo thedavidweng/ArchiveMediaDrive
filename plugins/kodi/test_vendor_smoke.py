@@ -61,11 +61,13 @@ def main() -> int:
             [sys.executable, "-c",
              f"import sys; sys.path.insert(0, r'{vendor_dir}'); "
              "import certifi, ssl; "
-             "roots = ssl.create_default_context(cafile=certifi.where()).get_ca_certs(); "
-             "assert roots; "
-             "assert not any(value == 'emSign ECC Root CA - G3' "
+             "roots = ssl.create_default_context(cafile=certifi.where()).get_ca_certs()\n"
+             "if not roots:\n"
+             "    raise SystemExit('bundled CA store is empty')\n"
+             "if any(value == 'emSign ECC Root CA - G3' "
              "for cert in roots for rdn in cert['subject'] for key, value in rdn "
-             "if key == 'commonName')"],
+             "if key == 'commonName'):\n"
+             "    raise SystemExit('bundled CA store contains the affected root')"],
             capture_output=True, text=True,
         )
         if ca_check.returncode != 0:
