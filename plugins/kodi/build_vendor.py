@@ -72,6 +72,8 @@ def _should_strip(name: str) -> bool:
         return False
     if "licenses" in parts:
         return False
+    if parts[-1] == "py.typed":
+        return True
     return any(part in _STRIP_DIRS or part.endswith(".dist-info") for part in parts)
 
 
