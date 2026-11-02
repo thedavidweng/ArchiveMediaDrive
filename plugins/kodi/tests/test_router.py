@@ -1,14 +1,18 @@
 import json
 import shutil
 import tempfile
+import time
 import unittest
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, call, patch
 from urllib.parse import parse_qs, urlparse
 
 import xbmcstub
 
-from resources.lib.amd.router import _source_menu, build_plugin_url, run_with_handles
+from resources.lib.amd.cache import clear_cache, load_cache, save_cache
+from resources.lib.amd.router import _add_source, _delete_source, _edit_source, _resolve_source, _source_menu, build_plugin_url, run_with_handles
+from resources.lib.amd.settings import load_sources, save_sources
+from resources.lib.amd.source import SourceError
 
 
 class RouterTests(unittest.TestCase):
@@ -90,6 +94,13 @@ class RouterTests(unittest.TestCase):
         sources = json.loads((profile / "sources.json").read_text())
         self.assertEqual(sources[0]["id"], "test")
         self.assertEqual(sources[0]["value"], "opensource")
+        self.assertEqual(sources[0]["refreshMinutes"], 360)
+        dialog.input.assert_has_calls([
+            call("Source name"),
+            call("Source ID", "test"),
+            call("Source value"),
+            call("Refresh interval (minutes)", "360"),
+        ])
 
     def test_manage_edits_selected_source(self) -> None:
         dialog = self._xbmcgui.Dialog.return_value
@@ -105,6 +116,13 @@ class RouterTests(unittest.TestCase):
         saved = json.loads((profile / "sources.json").read_text())
         self.assertEqual(saved[0]["name"], "Updated")
         self.assertEqual(saved[0]["id"], "test")
+        self.assertEqual(saved[0]["value"], "opensource")
+        self.assertEqual(saved[0]["refreshMinutes"], 360)
+        dialog.input.assert_has_calls([
+            call("Source name", "Test"),
+            call("Source value", "opensource"),
+            call("Refresh interval (minutes)", "360"),
+        ])
 
     def test_source_route_lists_items_from_ia_search(self) -> None:
         sources = [{"id": "prelinger", "name": "Prelinger", "kind": "collection", "value": "prelinger"}]
@@ -211,6 +229,64 @@ class SourceMenuTests(unittest.TestCase):
                 _source_menu(addon, gui, {"id": "test", "name": "Test"}, client)
                 args = action.call_args.args
                 self.assertEqual(args[2] if index < 2 else args[3], {"source_id": "test"})
+
+
+class SourceMutationTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.profile = tempfile.TemporaryDirectory()
+        self.addCleanup(self.profile.cleanup)
+        self.addon, self.gui = MagicMock(), MagicMock()
+        self.addon.getAddonInfo.return_value = self.profile.name
+        self.addon.getSettingString.return_value = ""
+        self.source = {"id": "test", "name": "Test", "kind": "item", "value": "old"}
+        save_sources(self.addon, [self.source])
+        save_cache(self.addon, "test", {"resolvedAt": time.time(), "items": {"old": []}})
+
+    def test_duplicate_id_is_not_added(self) -> None:
+        dialog = self.gui.Dialog.return_value
+        dialog.input.side_effect = ["Test", "test", "new", "360"]
+        dialog.select.return_value = 0
+        _add_source(self.addon, self.gui)
+        self.assertEqual(load_sources(self.addon), [self.source])
+        self.assertIsNotNone(load_cache(self.addon, "test", 360))
+        dialog.notification.assert_called_with("ArchiveMediaDrive", "Source ID already exists")
+
+    def test_edit_invalidates_cache_and_loads_new_item(self) -> None:
+        dialog = self.gui.Dialog.return_value
+        dialog.input.side_effect = ["Test", "new", "360"]
+        dialog.select.return_value = 0
+        _edit_source(self.addon, self.gui, {"source_id": "test"})
+        self.assertIsNone(load_cache(self.addon, "test", 360))
+        client = _make_ia_client({"item:new": [{"name": "new.mp4"}]})
+        result = _resolve_source(self.addon, client, load_sources(self.addon)[0], self.gui)
+        self.assertEqual(result["items"]["new"][0]["name"], "new.mp4")
+
+    def test_delete_invalidates_cache_before_id_is_reused(self) -> None:
+        self.gui.Dialog.return_value.yesno.return_value = True
+        _delete_source(self.addon, self.gui, {"source_id": "test"})
+        self.assertEqual(load_sources(self.addon), [])
+        self.assertIsNone(load_cache(self.addon, "test", 360))
+        dialog = self.gui.Dialog.return_value
+        dialog.input.side_effect = ["Test", "test", "new", "360"]
+        dialog.select.return_value = 0
+        _add_source(self.addon, self.gui)
+        client = _make_ia_client({"item:new": [{"name": "new.mp4"}]})
+        result = _resolve_source(self.addon, client, load_sources(self.addon)[0], self.gui)
+        self.assertEqual(result["items"]["new"][0]["name"], "new.mp4")
+
+    def test_existing_duplicate_ids_cannot_be_changed_or_deleted(self) -> None:
+        sources = [self.source, {**self.source, "name": "Another"}]
+        save_sources(self.addon, sources)
+        self.gui.Dialog.return_value.yesno.return_value = True
+        _edit_source(self.addon, self.gui, {"source_id": "test"})
+        _delete_source(self.addon, self.gui, {"source_id": "test"})
+        self.assertEqual(load_sources(self.addon), sources)
+        self.assertIsNotNone(load_cache(self.addon, "test", 360))
+        self.gui.Dialog.return_value.yesno.assert_not_called()
+
+    def test_cache_rejects_invalid_source_id(self) -> None:
+        with self.assertRaises(SourceError):
+            clear_cache(self.addon, "../outside")
 
 
 def _make_ia_client(items: dict):

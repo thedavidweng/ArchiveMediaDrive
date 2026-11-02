@@ -5,9 +5,12 @@ import time
 from pathlib import Path
 
 from .settings import _profile_dir
+from .source import _ID_RE, SourceError
 
 
 def _cache_path(addon, source_id: str) -> Path:
+    if not _ID_RE.fullmatch(source_id):
+        raise SourceError(f"invalid source id: {source_id!r}")
     return _profile_dir(addon) / "cache" / f"{source_id}.json"
 
 
@@ -29,3 +32,7 @@ def save_cache(addon, source_id: str, data: dict) -> None:
         json.dumps(data, ensure_ascii=False, separators=(",", ":")),
         encoding="utf-8",
     )
+
+
+def clear_cache(addon, source_id: str) -> None:
+    _cache_path(addon, source_id).unlink(missing_ok=True)

@@ -6,7 +6,7 @@ import time
 import unicodedata
 from urllib.parse import parse_qs, quote, urlencode
 
-from .cache import load_cache, save_cache
+from .cache import clear_cache, load_cache, save_cache
 from .settings import load_sources, save_sources
 from .source import Source, SourceError
 
@@ -407,6 +407,9 @@ def _add_source(addon, xbmcgui) -> None:
         _notify(xbmcgui, str(exc))
         return
     sources = load_sources(addon)
+    if any(s.get("id") == source_id for s in sources):
+        _notify(xbmcgui, "Source ID already exists")
+        return
     sources.append(source.to_dict())
     save_sources(addon, sources)
     _notify(xbmcgui, f"Added {source.name}")
@@ -414,10 +417,14 @@ def _add_source(addon, xbmcgui) -> None:
 
 def _edit_source(addon, xbmcgui, params) -> None:
     source_id = params.get("source_id", "")
-    source = next((s for s in load_sources(addon) if s.get("id") == source_id), None)
-    if source is None:
+    matches = [s for s in load_sources(addon) if s.get("id") == source_id]
+    if not matches:
         _notify(xbmcgui, "Source not found")
         return
+    if len(matches) > 1:
+        _notify(xbmcgui, "Duplicate source ID; resolve it in sources.json")
+        return
+    source = matches[0]
 
     dialog = xbmcgui.Dialog()
     name = dialog.input("Source name", source.get("name", ""))
@@ -457,18 +464,24 @@ def _edit_source(addon, xbmcgui, params) -> None:
         return
     sources = [s for s in load_sources(addon) if s.get("id") != source_id]
     sources.append(new.to_dict())
+    clear_cache(addon, source_id)
     save_sources(addon, sources)
     _notify(xbmcgui, f"Updated {new.name}")
 
 
 def _delete_source(addon, xbmcgui, params) -> None:
     source_id = params.get("source_id", "")
-    source = next((s for s in load_sources(addon) if s.get("id") == source_id), None)
-    if source is None:
+    matches = [s for s in load_sources(addon) if s.get("id") == source_id]
+    if not matches:
         return
+    if len(matches) > 1:
+        _notify(xbmcgui, "Duplicate source ID; resolve it in sources.json")
+        return
+    source = matches[0]
     if not xbmcgui.Dialog().yesno("ArchiveMediaDrive", f"Delete {source.get('name')}?"):
         return
     sources = [s for s in load_sources(addon) if s.get("id") != source_id]
+    clear_cache(addon, source_id)
     save_sources(addon, sources)
     _notify(xbmcgui, f"Deleted {source.get('name')}")
 
