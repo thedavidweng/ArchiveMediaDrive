@@ -2,12 +2,13 @@ import json
 import shutil
 import tempfile
 import unittest
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 from urllib.parse import parse_qs, urlparse
 
 import xbmcstub
 
-from resources.lib.amd.router import build_plugin_url, run_with_handles
+from resources.lib.amd.router import _source_menu, build_plugin_url, run_with_handles
 
 
 class RouterTests(unittest.TestCase):
@@ -74,6 +75,36 @@ class RouterTests(unittest.TestCase):
         self.assertIn("Prelinger", labels)
         self.assertIn("Trip Down", labels)
         self.assertIn("Manage sources", labels)
+
+    def test_manage_adds_source_with_kodi_input_signature(self) -> None:
+        dialog = self._xbmcgui.Dialog.return_value
+        dialog.select.side_effect = [0, 0]
+        dialog.input.side_effect = lambda heading, defaultt="": {
+            "Source name": "Test",
+            "Source value": "opensource",
+        }.get(heading, defaultt)
+
+        self._run("settings")
+
+        profile = Path(self._xbmcaddon.Addon.return_value.getAddonInfo.return_value)
+        sources = json.loads((profile / "sources.json").read_text())
+        self.assertEqual(sources[0]["id"], "test")
+        self.assertEqual(sources[0]["value"], "opensource")
+
+    def test_manage_edits_selected_source(self) -> None:
+        dialog = self._xbmcgui.Dialog.return_value
+        dialog.select.side_effect = [1, 0, 0]
+        dialog.input.side_effect = lambda heading, defaultt="": (
+            "Updated" if heading == "Source name" else defaultt
+        )
+        sources = [{"id": "test", "name": "Test", "kind": "item", "value": "opensource"}]
+
+        self._run("settings", sources=sources)
+
+        profile = Path(self._xbmcaddon.Addon.return_value.getAddonInfo.return_value)
+        saved = json.loads((profile / "sources.json").read_text())
+        self.assertEqual(saved[0]["name"], "Updated")
+        self.assertEqual(saved[0]["id"], "test")
 
     def test_source_route_lists_items_from_ia_search(self) -> None:
         sources = [{"id": "prelinger", "name": "Prelinger", "kind": "collection", "value": "prelinger"}]
@@ -169,6 +200,17 @@ class BuildPluginUrlTests(unittest.TestCase):
         qs = parse_qs(parsed.query)
         self.assertEqual(qs["route"], ["item"])
         self.assertEqual(qs["identifier"], ["TripDown1905"])
+
+
+class SourceMenuTests(unittest.TestCase):
+    def test_actions_receive_the_selected_source_id(self) -> None:
+        for index, name in enumerate(("_edit_source", "_delete_source", "_test_source", "_refresh_source")):
+            with self.subTest(action=name), patch(f"resources.lib.amd.router.{name}") as action:
+                addon, gui, client = MagicMock(), MagicMock(), MagicMock()
+                gui.Dialog.return_value.select.return_value = index
+                _source_menu(addon, gui, {"id": "test", "name": "Test"}, client)
+                args = action.call_args.args
+                self.assertEqual(args[2] if index < 2 else args[3], {"source_id": "test"})
 
 
 def _make_ia_client(items: dict):
