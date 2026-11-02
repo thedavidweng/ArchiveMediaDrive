@@ -6,7 +6,7 @@ import time
 import unicodedata
 from urllib.parse import parse_qs, quote, urlencode
 
-from .cache import load_cache, save_cache
+from .cache import clear_cache, load_cache, save_cache
 from .settings import load_sources, save_sources
 from .source import Source, SourceError
 
@@ -235,7 +235,7 @@ def _render_root(handle, addon, xbmcgui, xbmcplugin) -> None:
 
     item = xbmcgui.ListItem(label="Manage sources")
     xbmcplugin.addDirectoryItem(handle, build_plugin_url("settings"), item, True)
-    xbmcplugin.endOfDirectory(handle)
+    xbmcplugin.endOfDirectory(handle, cacheToDisc=False)
 
 
 def _render_source(handle, params, addon, xbmcgui, xbmcplugin, ia_client) -> None:
@@ -368,14 +368,15 @@ def _settings(handle, addon, xbmcgui, xbmcplugin, ia_client) -> None:
 def _source_menu(addon, xbmcgui, source, ia_client) -> None:
     options = ["Edit", "Delete", "Test", "Refresh"]
     idx = xbmcgui.Dialog().select(source.get("name", ""), options)
+    params = {"source_id": source["id"]}
     if idx == 0:
-        _edit_source(addon, xbmcgui, source)
+        _edit_source(addon, xbmcgui, params)
     elif idx == 1:
-        _delete_source(addon, xbmcgui, source)
+        _delete_source(addon, xbmcgui, params)
     elif idx == 2:
-        _test_source(addon, xbmcgui, ia_client, source)
+        _test_source(addon, xbmcgui, ia_client, params)
     elif idx == 3:
-        _refresh_source(addon, xbmcgui, ia_client, source)
+        _refresh_source(addon, xbmcgui, ia_client, params)
 
 
 def _add_source(addon, xbmcgui) -> None:
@@ -384,7 +385,7 @@ def _add_source(addon, xbmcgui) -> None:
     if not name:
         return
     suggested = _suggest_id(name)
-    source_id = dialog.input("Source ID", defaultvalue=suggested)
+    source_id = dialog.input("Source ID", suggested)
     if not source_id:
         return
     kinds = ["item", "collection", "favorites", "search"]
@@ -394,7 +395,7 @@ def _add_source(addon, xbmcgui) -> None:
     value = dialog.input("Source value")
     if not value:
         return
-    refresh = dialog.input("Refresh interval (minutes)", defaultvalue="360")
+    refresh = dialog.input("Refresh interval (minutes)", "360")
     try:
         refresh = int(refresh)
     except ValueError:
@@ -406,6 +407,9 @@ def _add_source(addon, xbmcgui) -> None:
         _notify(xbmcgui, str(exc))
         return
     sources = load_sources(addon)
+    if any(s.get("id") == source_id for s in sources):
+        _notify(xbmcgui, "Source ID already exists")
+        return
     sources.append(source.to_dict())
     save_sources(addon, sources)
     _notify(xbmcgui, f"Added {source.name}")
@@ -413,13 +417,17 @@ def _add_source(addon, xbmcgui) -> None:
 
 def _edit_source(addon, xbmcgui, params) -> None:
     source_id = params.get("source_id", "")
-    source = next((s for s in load_sources(addon) if s.get("id") == source_id), None)
-    if source is None:
+    matches = [s for s in load_sources(addon) if s.get("id") == source_id]
+    if not matches:
         _notify(xbmcgui, "Source not found")
         return
+    if len(matches) > 1:
+        _notify(xbmcgui, "Duplicate source ID; resolve it in sources.json")
+        return
+    source = matches[0]
 
     dialog = xbmcgui.Dialog()
-    name = dialog.input("Source name", defaultvalue=source.get("name", ""))
+    name = dialog.input("Source name", source.get("name", ""))
     if not name:
         return
     kinds = ["item", "collection", "favorites", "search"]
@@ -427,12 +435,12 @@ def _edit_source(addon, xbmcgui, params) -> None:
     kind_idx = dialog.select("Source kind", kinds, preselect=kinds.index(current_kind))
     if kind_idx < 0:
         return
-    value = dialog.input("Source value", defaultvalue=source.get("value", ""))
+    value = dialog.input("Source value", source.get("value", ""))
     if not value:
         return
     refresh = dialog.input(
         "Refresh interval (minutes)",
-        defaultvalue=str(source.get("refreshMinutes", source.get("refresh_minutes", 360))),
+        str(source.get("refreshMinutes", source.get("refresh_minutes", 360))),
     )
     try:
         refresh = int(refresh)
@@ -456,18 +464,24 @@ def _edit_source(addon, xbmcgui, params) -> None:
         return
     sources = [s for s in load_sources(addon) if s.get("id") != source_id]
     sources.append(new.to_dict())
+    clear_cache(addon, source_id)
     save_sources(addon, sources)
     _notify(xbmcgui, f"Updated {new.name}")
 
 
 def _delete_source(addon, xbmcgui, params) -> None:
     source_id = params.get("source_id", "")
-    source = next((s for s in load_sources(addon) if s.get("id") == source_id), None)
-    if source is None:
+    matches = [s for s in load_sources(addon) if s.get("id") == source_id]
+    if not matches:
         return
+    if len(matches) > 1:
+        _notify(xbmcgui, "Duplicate source ID; resolve it in sources.json")
+        return
+    source = matches[0]
     if not xbmcgui.Dialog().yesno("ArchiveMediaDrive", f"Delete {source.get('name')}?"):
         return
     sources = [s for s in load_sources(addon) if s.get("id") != source_id]
+    clear_cache(addon, source_id)
     save_sources(addon, sources)
     _notify(xbmcgui, f"Deleted {source.get('name')}")
 
